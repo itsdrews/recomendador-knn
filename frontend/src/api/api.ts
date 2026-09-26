@@ -92,7 +92,6 @@ export const api = {
     }));
   },
 
-  // Novo método para buscar os detalhes do filme no FastAPI
   getMovieDetails: (title: string): Promise<MovieDetails> =>
     request<MovieDetails>(`/movies/details?title=${encodeURIComponent(title)}`),
 };

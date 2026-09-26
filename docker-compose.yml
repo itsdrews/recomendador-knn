@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    environment:
+      - OMDB_API_KEY=${OMDB_API_KEY}
+      - LIBRETRANSLATE_URL=${LIBRETRANSLATE_URL}
+    env_file:
+      - .env
+    depends_on:
+      - libretranslate
+    restart: always
+
+  libretranslate:
+    image: libretranslate/libretranslate
+    container_name: libretranslate_service
+    ports:
+      - "5000:5000"
+    environment:
+      - LT_LOAD_ONLY=en,pt
+    restart: always

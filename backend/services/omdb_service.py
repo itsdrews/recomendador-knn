@@ -7,6 +7,9 @@ load_dotenv()
 
 OMDB_API_KEY = os.getenv("OMDB_API_KEY")
 
+# URL padrão para instância local (Docker).
+LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "http://localhost:5000/translate")
+
 class OMDBService:
     @staticmethod
     def limpar_titulo_movielens(titulo_bruto: str):
@@ -26,11 +29,36 @@ class OMDBService:
                 
         return titulo_formatado, ano
 
+    @staticmethod
+    async def traduzir_texto(texto: str, idioma_origem: str = "en", idioma_destino: str = "pt") -> str:
+        """Envia o texto para a API do LibreTranslate para realizar a tradução."""
+        if not texto or texto in ["N/A", "Sinopse não disponível.", "Não foi possível carregar os detalhes."]:
+            return texto
+
+        payload = {
+            "q": texto,
+            "source": idioma_origem,
+            "target": idioma_destino,
+            "format": "text"
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(LIBRETRANSLATE_URL, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("translatedText", texto)
+        except Exception:
+            # Em caso de timeout ou indisponibilidade do serviço de tradução,
+            # mantém o texto original retornado pelo OMDb (em inglês) como fallback.
+            pass
+
+        return texto
+
     @classmethod
     async def buscar_detalhes_filme(cls, titulo_bruto: str) -> dict:
         titulo_limpo, ano_movielens = cls.limpar_titulo_movielens(titulo_bruto)
         params = {"t": titulo_limpo, "apikey": OMDB_API_KEY}
-        print("buscarfilme omdb service.py")
         if ano_movielens:
             params["y"] = ano_movielens
             
@@ -40,10 +68,15 @@ class OMDBService:
                 data = response.json()
                 
                 if data.get("Response") == "True":
+                    sinopse_original = data.get("Plot", "Sinopse não disponível.")
+                    
+                    # Traduzindo a sinopse usando o LibreTranslate
+                    sinopse_traduzida = await cls.traduzir_texto(sinopse_original)
+
                     return {
                         "titulo_formatado": data.get("Title", titulo_limpo),
                         "poster": data.get("Poster") if data.get("Poster") != "N/A" else "https://via.placeholder.com/300x450?text=Poster+Indisponivel",
-                        "sinopse": data.get("Plot", "Sinopse não disponível."),
+                        "sinopse": sinopse_traduzida,
                         "ano": data.get("Year", ano_movielens or "N/A"),
                         "diretor": data.get("Director", "N/A")
                     }
