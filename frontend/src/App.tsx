@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { RatingEntry, Recommendation, Movie, MovieDetails } from './api/api';
+import type { RatingEntry, Movie, MovieRecommendation, MovieDetails } from './api/api';
 import { RecommendationCard } from './components/RecommendationCard';
 import { api } from './api/api';
 
@@ -515,7 +515,7 @@ function RecommendationsTab({
   userId: number;
   onSelectMovie: (title: string, year?: string) => void;
 }) {
-  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [recs, setRecs] = useState<MovieRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
@@ -624,7 +624,7 @@ function RecommendationsTab({
       <div className="grid gap-3 sm:grid-cols-2">
         {recs.map((recommendation, index) => (
           <RecommendationCard
-            key={`${recommendation.movie.id}-${index}`}
+            key={`${recommendation.movie_id}-${index}`}
             recommendation={recommendation}
             position={index + 1}
             onSelect={onSelectMovie}

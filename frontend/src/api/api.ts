@@ -1,6 +1,5 @@
 const BASE_URL = 'http://localhost:8000';
 
-// Schemas existentes
 export interface UserHistoryItem {
   movie_id: number;
   titulo: string;
@@ -22,7 +21,6 @@ export interface Movie {
   poster?: string;
 }
 
-// Novo Schema para Detalhes OMDb vindo do FastAPI
 export interface MovieDetails {
   titulo_formatado: string;
   poster: string;
@@ -37,10 +35,21 @@ export interface RatingEntry {
   timestamp?: string;
 }
 
-export interface Recommendation {
-  movie: Movie;
-  score?: number;
-  reason?: string;
+export interface MovieRecommendation {
+  movie_id: number;
+  titulo: string;
+  score_recomendacao: number;
+  ano: string;
+  diretor: string;
+  sinopse: string;
+  poster_url: string;
+}
+
+export interface RecommendationResponse {
+  user_id: number;
+  total_historico: number;
+  total_recomendacoes: number;
+  recomendacoes: MovieRecommendation[];
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -78,8 +87,11 @@ export const api = {
       }),
     }),
 
-  getRecommendations: (userId: number): Promise<Recommendation[]> =>
-    request(`/recomendar/${userId}`),
+  getRecommendations: async (userId: number): Promise<MovieRecommendation[]> => {
+    // CORRIGIDO: Agora usa a função request para incluir o BASE_URL e barras corretas
+    const data = await request<RecommendationResponse>(`/recomendar/${userId}`);
+    return data.recomendacoes;
+  },
 
   searchMovies: async (query: string): Promise<Movie[]> => {
     const results = await request<any[]>(`/movies/search?q=${encodeURIComponent(query)}`);

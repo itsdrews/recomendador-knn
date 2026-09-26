@@ -1,8 +1,8 @@
 import React from 'react';
-import type { Recommendation } from '../api/api';
+import type { MovieRecommendation } from '../api/api';
 
 interface RecommendationCardProps {
-  recommendation: Recommendation;
+  recommendation: MovieRecommendation;
   position: number;
   onSelect: (title: string, year?: string) => void;
 }
@@ -14,52 +14,48 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
 }) => {
   return (
     <div
-      onClick={() =>
-        onSelect(
-          recommendation.movie.title,
-          recommendation.movie.year?.toString()
-        )
-      }
+      onClick={() => onSelect(recommendation.titulo, recommendation.ano)}
       className="relative cursor-pointer overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] p-5 transition-colors hover:border-[var(--color-amber)] hover:bg-[var(--color-card-hover)]"
     >
-      {/* Posição da recomendação */}
+      {/* Posição */}
       <div className="absolute right-4 top-4 font-mono text-xs text-[var(--color-muted)]">
         #{position}
       </div>
 
-      {/* Título */}
-      <p className="pr-8 font-display text-base font-semibold leading-snug text-[var(--color-foreground)]">
-        {recommendation.movie.title}
-      </p>
-
-      {/* Informações do filme */}
-      <div className="mt-1.5 flex items-center gap-2">
-        {recommendation.movie.year && (
-          <span className="font-mono text-xs text-[var(--color-muted)]">
-            {recommendation.movie.year}
-          </span>
+      <div className="flex gap-4">
+        {/* Poster */}
+        {recommendation.poster_url && (
+          <img
+            src={recommendation.poster_url}
+            alt={recommendation.titulo}
+            className="h-24 w-16 rounded-md object-cover shrink-0 shadow"
+          />
         )}
 
-        {recommendation.movie.genre && (
-          <span className="rounded-full bg-[var(--color-surface)] px-2 py-0.5 font-mono text-xs text-[var(--color-muted)]">
-            {recommendation.movie.genre}
-          </span>
-        )}
+        <div className="min-w-0 flex-1">
+          {/* Título */}
+          <p className="pr-8 font-display text-base font-semibold leading-snug text-[var(--color-foreground)]">
+            {recommendation.titulo}
+          </p>
 
-        {/* Score */}
-        {recommendation.score !== undefined && (
-          <span className="ml-auto font-mono text-xs text-[var(--color-amber)]">
-            {(recommendation.score * 100).toFixed(0)}% match
-          </span>
-        )}
+          {/* Informações */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--color-muted)]">
+            {recommendation.ano && <span>{recommendation.ano}</span>}
+            {recommendation.diretor && <span>• Dir: {recommendation.diretor}</span>}
+          </div>
+
+
+        </div>
       </div>
 
-      {/* Motivo da recomendação */}
-      {recommendation.reason && (
-        <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)]">
-          {recommendation.reason}
+      {/* Sinopse */}
+      {recommendation.sinopse && (
+        <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)] line-clamp-2">
+          {recommendation.sinopse}
         </p>
       )}
+
+
     </div>
   );
 };
