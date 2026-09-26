@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import joblib
 from controllers.recommendation_controller import router as recommendation_router
 from controllers.rating_controller import router as rating_router
+from controllers.movie_controller import router as movie_router
 import pandas as pd
 
 @asynccontextmanager
@@ -57,6 +59,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="API de Recomendação de Filmes (MovieLens + OMDb)", lifespan=lifespan)
 
+# Define as origens permitidas (URLs do React em desenvolvimento e produção)
+origins = [
+    "http://localhost:3000",  # Porta padrão do Create React App / Next.js
+    "http://localhost:5173",  # Porta padrão do Vite
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+
+# Adiciona o middleware de CORS à aplicação
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,       # Permite requisições apenas das origens listadas
+    allow_credentials=True,      # Permite envio de cookies/headers de autorização
+    allow_methods=["*"],         # Permite todos os métodos HTTP (GET, POST, OPTIONS, etc.)
+    allow_headers=["*"],         # Permite todos os cabeçalhos
+)
+
 # Registra os roteadores
 app.include_router(recommendation_router)
 app.include_router(rating_router)
+app.include_router(movie_router)

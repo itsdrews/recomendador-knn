@@ -30,6 +30,7 @@ class OMDBService:
     async def buscar_detalhes_filme(cls, titulo_bruto: str) -> dict:
         titulo_limpo, ano_movielens = cls.limpar_titulo_movielens(titulo_bruto)
         params = {"t": titulo_limpo, "apikey": OMDB_API_KEY}
+        print("buscarfilme omdb service.py")
         if ano_movielens:
             params["y"] = ano_movielens
             
