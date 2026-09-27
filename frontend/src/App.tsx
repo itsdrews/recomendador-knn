@@ -430,7 +430,7 @@ function RateMovieTab({
           type="text"
           value={query}
           onChange={handleInput}
-          placeholder="Search for a movie…"
+          placeholder="Procure por um filme"
           className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-3.5 pl-11 pr-4 font-body text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] outline-none transition-colors focus:border-[var(--color-amber)] focus:ring-1 focus:ring-[var(--color-amber-glow)]"
         />
         {searching && (
@@ -500,8 +500,8 @@ function RateMovieTab({
 
       {!query.trim() && (
         <div className="py-12 text-center text-[var(--color-muted)]">
-          <p className="font-display text-lg italic">Find a film to rate</p>
-          <p className="mt-1 text-sm">Type a title above to search the catalog.</p>
+          <p className="font-display text-lg italic">Encontre um filme para avaliar</p>
+          <p className="mt-1 text-sm">Digite o titulo acima para buscar em nosso catálogo.</p>
         </div>
       )}
     </div>

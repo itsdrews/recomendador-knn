@@ -94,13 +94,12 @@ export const api = {
   },
 
   searchMovies: async (query: string): Promise<Movie[]> => {
-    const results = await request<any[]>(`/movies/search?q=${encodeURIComponent(query)}`);
+    const results = await request<any[]>(`/movies/search?q=${query}`);
     return results.map((m) => ({
       id: m.id ?? m.movie_id,
       title: m.title ?? m.titulo ?? 'Título desconhecido',
       year: m.year ?? m.ano,
       genre: m.genre ?? m.genero,
-      poster: m.poster,
     }));
   },
 
