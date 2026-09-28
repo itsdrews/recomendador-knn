@@ -1,5 +1,9 @@
 const BASE_URL = 'http://localhost:8000';
 
+// ==========================================
+// INTERFACES (Compatibilizadas com Pydantic)
+// ==========================================
+
 export interface UserHistoryItem {
   movie_id: number;
   titulo: string;
@@ -14,13 +18,24 @@ export interface UserRatingsResponse {
 }
 
 export interface Movie {
-  id: number | string;
+  id: number;
   title: string;
-  year?: number;
-  genre?: string;
-  poster?: string;
+  year?: number | string | null;
+  genre?: string | null;
+  poster?: string | null;
 }
 
+// Resposta crua do Backend para Detalhes do Filme
+export interface BackendMovieDetailsResponse {
+  movie_id: number;
+  titulo: string;
+  ano?: string | null;
+  diretor?: string | null;
+  sinopse?: string | null;
+  poster_url?: string | null;
+}
+
+// Interface que o componente React consome
 export interface MovieDetails {
   titulo_formatado: string;
   poster: string;
@@ -39,18 +54,23 @@ export interface MovieRecommendation {
   movie_id: number;
   titulo: string;
   score_recomendacao: number;
-  ano: string;
-  diretor: string;
-  sinopse: string;
-  poster_url: string;
+  ano?: string | null;
+  diretor?: string | null;
+  sinopse?: string | null;
+  poster_url?: string | null;
 }
 
 export interface RecommendationResponse {
   user_id: number;
   total_historico: number;
+  historico_usuario: UserHistoryItem[]; // 📌 CORRIGIDO: Adicionado campo exigido pelo backend
   total_recomendacoes: number;
   recomendacoes: MovieRecommendation[];
 }
+
+// ==========================================
+// FUNÇÃO BASE DE REQUISIÇÃO
+// ==========================================
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -64,7 +84,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// ==========================================
+// MÉTODOS DA API
+// ==========================================
+
 export const api = {
+  // 1. Obter Avaliações de um Usuário
   getRatings: async (userId: number): Promise<RatingEntry[]> => {
     const data = await request<UserRatingsResponse>(`/avaliacoes/${userId}`);
     return data.avaliacoes.map((item) => ({
@@ -77,32 +102,54 @@ export const api = {
     }));
   },
 
+  // 2. Avaliar um Filme
   rateMovie: (userId: number, movieId: number | string, rating: number): Promise<void> =>
     request(`/avaliacoes`, {
       method: 'POST',
       body: JSON.stringify({
-        user_id: userId,
+        user_id: Number(userId),
         movie_id: Number(movieId),
-        nota: rating,
+        nota: Number(rating),
       }),
     }),
 
+  // 3. Obter Recomendações
   getRecommendations: async (userId: number): Promise<MovieRecommendation[]> => {
-    // CORRIGIDO: Agora usa a função request para incluir o BASE_URL e barras corretas
     const data = await request<RecommendationResponse>(`/recomendar/${userId}`);
     return data.recomendacoes;
   },
 
+  // 4. Buscar Filmes por Título
   searchMovies: async (query: string): Promise<Movie[]> => {
-    const results = await request<any[]>(`/movies/search?q=${query}`);
+    if (!query.trim()) return [];
+
+    const results = await request<any[]>(`/movies/search?q=${encodeURIComponent(query)}`);
     return results.map((m) => ({
       id: m.id ?? m.movie_id,
       title: m.title ?? m.titulo ?? 'Título desconhecido',
       year: m.year ?? m.ano,
-      genre: m.genre ?? m.genero,
+      genre: m.genre ?? m.genero ?? m.genres,
+      poster: m.poster ?? m.poster_url,
     }));
   },
 
-  getMovieDetails: (title: string): Promise<MovieDetails> =>
-    request<MovieDetails>(`/movies/details?title=${encodeURIComponent(title)}`),
+  getMovieDetails: async (movieId: number | string): Promise<MovieDetails> => {
+    // Garante que o ID seja numérico para formar a URL do endpoint dinâmico
+    console.log("movieId: ", movieId)
+    const id = Number(movieId);
+    if (isNaN(id)) {
+      throw new Error("ID do filme inválido.");
+    }
+
+    const rawData = await request<BackendMovieDetailsResponse>(`/movies/details/${id}`);
+
+    // Mapeia a resposta do Backend para o formato consumido pelos componentes React
+    return {
+      titulo_formatado: rawData.titulo ?? 'Título indisponível',
+      poster: rawData.poster_url ?? '',
+      sinopse: rawData.sinopse ?? 'Sem sinopse disponível.',
+      ano: rawData.ano ?? 'N/A',
+      diretor: rawData.diretor ?? 'N/A',
+    };
+  },
 };

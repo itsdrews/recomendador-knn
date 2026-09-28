@@ -1,17 +1,24 @@
-from fastapi import APIRouter, Request
-from schemas.recommendation_schema import RecommendationResponseSchema,UserRatingsResponseSchema
+from fastapi import APIRouter, Depends, HTTPException, status
+from dependencies import get_recommendation_service
+from schemas.recommendation_schema import RecommendationResponseSchema
 from services.recommendation_service import RecommendationService
 
 router = APIRouter(prefix="/recomendar", tags=["Recomendações"])
 
-@router.get("/{user_id}", response_model=RecommendationResponseSchema)
-async def recomendar_filmes(user_id: int, request: Request, top_k: int = 5):
-    # Recupera os artefatos mantidos no estado global da aplicação
-    knn = request.app.state.store["knn"]
-    matrix = request.app.state.store["user_item_matrix"]
-    movie_titles = request.app.state.store["movie_titles"]
-    timestamps_dict = request.app.state.store.get("timestamps_dict", {})
-    service = RecommendationService(knn, matrix, movie_titles,timestamps_dict)
-    
-    return await service.gerar_recomendacoes(user_id, top_k)
 
+@router.get("/{user_id}", response_model=RecommendationResponseSchema)
+async def recomendar_filmes(
+    user_id: int,
+    top_k: int = 5,
+    use_cache: bool = True,
+    recommendation_service: RecommendationService = Depends(get_recommendation_service),
+):
+    """
+    Gera ou recupera recomendações salvas para o usuário.
+    """
+    try:
+        return await recommendation_service.gerar_recomendacoes(
+            user_id=user_id, top_k=top_k, use_cache=use_cache
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

@@ -4,7 +4,7 @@ import type { MovieRecommendation } from '../api/api';
 interface RecommendationCardProps {
   recommendation: MovieRecommendation;
   position: number;
-  onSelect: (title: string, year?: string) => void;
+  onSelect: (movieId: number) => void;
 }
 
 export const RecommendationCard: React.FC<RecommendationCardProps> = ({
@@ -14,7 +14,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
 }) => {
   return (
     <div
-      onClick={() => onSelect(recommendation.titulo, recommendation.ano)}
+      onClick={() => onSelect(recommendation.movie_id)}
       className="relative cursor-pointer overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] p-5 transition-colors hover:border-[var(--color-amber)] hover:bg-[var(--color-card-hover)]"
     >
       {/* Posição */}
@@ -28,7 +28,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
           <img
             src={recommendation.poster_url}
             alt={recommendation.titulo}
-            className="h-24 w-16 rounded-md object-cover shrink-0 shadow"
+            className="h-24 w-16 shrink-0 rounded-md object-cover shadow"
           />
         )}
 
@@ -43,19 +43,15 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
             {recommendation.ano && <span>{recommendation.ano}</span>}
             {recommendation.diretor && <span>• Dir: {recommendation.diretor}</span>}
           </div>
-
-
         </div>
       </div>
 
       {/* Sinopse */}
       {recommendation.sinopse && (
-        <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)] line-clamp-2">
+        <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[var(--color-muted)]">
           {recommendation.sinopse}
         </p>
       )}
-
-
     </div>
   );
 };

@@ -14,14 +14,11 @@ const USERS = [
 type Tab = 'history' | 'rate' | 'recommend';
 type SortOption = 'RECENT' | 'OLD' | 'YEAR_DESC' | 'YEAR_ASC';
 
-// Modal de Detalhes do Filme (OMDb)
 function MovieDetailsModal({
-  title,
-  year,
+  identifier,
   onClose,
 }: {
-  title: string;
-  year?: string;
+  identifier: { id?: number; title?: string; year?: string };
   onClose: () => void;
 }) {
   const [details, setDetails] = useState<MovieDetails | null>(null);
@@ -31,10 +28,24 @@ function MovieDetailsModal({
     let isMounted = true;
     setLoading(true);
 
-    // Recompõe o formato "Título (Ano)" esperado pelo seu backend
-    const tituloBruto = year ? `${title} (${year})` : title;
+    // Validação estrita para verificar se o ID é um número válido e não-NaN
+    const hasValidId =
+      identifier.id !== undefined &&
+      identifier.id !== null &&
+      !Number.isNaN(Number(identifier.id));
 
-    api.getMovieDetails(tituloBruto)
+    const query = hasValidId
+      ? String(identifier.id)
+      : identifier.year
+        ? `${identifier.title} (${identifier.year})`
+        : identifier.title || '';
+
+    if (!query || query === 'undefined') {
+      setLoading(false);
+      return;
+    }
+    api
+      .getMovieDetails(query)
       .then((data) => {
         if (isMounted) {
           setDetails(data);
@@ -42,26 +53,29 @@ function MovieDetailsModal({
         }
       })
       .catch((err) => {
-        console.error("Erro ao carregar detalhes:", err);
+        console.error('Erro ao carregar detalhes:', err);
         if (isMounted) setLoading(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [title, year]);
+  }, [identifier]);
+
+
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div className="relative w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 font-mono text-sm text-[var(--color-muted)] hover:text-[var(--color-foreground)] cursor-pointer"
+          className="absolute right-4 top-4 cursor-pointer font-mono text-sm text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
         >
           ✕ Fechar
         </button>
 
         {loading ? (
-          <div className="py-12 text-center font-mono text-sm text-[var(--color-muted)] animate-pulse">
+          <div className="animate-pulse py-12 text-center font-mono text-sm text-[var(--color-muted)]">
             Carregando detalhes do filme…
           </div>
         ) : details ? (
@@ -70,7 +84,7 @@ function MovieDetailsModal({
               <img
                 src={details.poster}
                 alt={details.titulo_formatado}
-                className="h-52 w-36 rounded-lg object-cover shadow-md shrink-0"
+                className="h-52 w-36 shrink-0 rounded-lg object-cover shadow-md"
               />
             )}
             <div className="flex-1 space-y-2">
@@ -135,21 +149,19 @@ function StarRating({
 
 function RatingHistoryTab({
   userId,
-  onSelectMovie,
+  onSelectMovieId,
 }: {
   userId: number;
-  onSelectMovie: (title: string, year?: string) => void;
+  onSelectMovieId: (movieId: number) => void;
 }) {
   const [entries, setEntries] = useState<RatingEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados dos Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [starFilter, setStarFilter] = useState<number | 'ALL'>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('RECENT');
 
-  // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
@@ -164,23 +176,18 @@ function RatingHistoryTab({
       .finally(() => setLoading(false));
   }, [userId]);
 
-  // Aplicação dos Filtros e Ordenação via useMemo
   const filteredAndSortedEntries = useMemo(() => {
     return entries
       .filter((e) => {
-        // Filtro por Nome
         const matchesName = e.movie.title
           .toLowerCase()
           .includes(searchTerm.toLowerCase());
-
-        // Filtro por Estrelas/Nota
         const matchesRating =
           starFilter === 'ALL' || Math.round(e.rating) === starFilter;
 
         return matchesName && matchesRating;
       })
       .sort((a, b) => {
-        // Ordenações
         if (sortBy === 'RECENT') {
           const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
           const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -201,7 +208,6 @@ function RatingHistoryTab({
       });
   }, [entries, searchTerm, starFilter, sortBy]);
 
-  // Resetar a página para a 1ª sempre que alterar algum filtro
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, starFilter, sortBy]);
@@ -209,7 +215,7 @@ function RatingHistoryTab({
   if (loading)
     return (
       <div className="flex items-center justify-center py-20 text-[var(--color-muted)]">
-        <span className="font-mono text-sm animate-pulse">Loading ratings…</span>
+        <span className="animate-pulse font-mono text-sm">Loading ratings…</span>
       </div>
     );
 
@@ -228,7 +234,6 @@ function RatingHistoryTab({
       </div>
     );
 
-  // Lógica da Paginação baseada na lista filtrada
   const totalPages = Math.ceil(filteredAndSortedEntries.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentEntries = filteredAndSortedEntries.slice(
@@ -238,9 +243,7 @@ function RatingHistoryTab({
 
   return (
     <div className="space-y-4">
-      {/* Barra de Controles e Filtros */}
       <div className="grid grid-cols-1 gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] p-4 sm:grid-cols-3">
-        {/* Busca por Nome */}
         <div>
           <label className="mb-1 block font-mono text-xs text-[var(--color-muted)]">
             Buscar por nome
@@ -254,7 +257,6 @@ function RatingHistoryTab({
           />
         </div>
 
-        {/* Filtro por Avaliação (Estrelas) */}
         <div>
           <label className="mb-1 block font-mono text-xs text-[var(--color-muted)]">
             Avaliação
@@ -275,7 +277,6 @@ function RatingHistoryTab({
           </select>
         </div>
 
-        {/* Ordenação por Data de Avaliação / Ano de Lançamento */}
         <div>
           <label className="mb-1 block font-mono text-xs text-[var(--color-muted)]">
             Ordenar por
@@ -293,7 +294,6 @@ function RatingHistoryTab({
         </div>
       </div>
 
-      {/* Exibição da Lista */}
       {currentEntries.length === 0 ? (
         <div className="py-12 text-center text-[var(--color-muted)]">
           <p className="font-mono text-sm">Nenhum filme encontrado com esses filtros.</p>
@@ -305,7 +305,7 @@ function RatingHistoryTab({
             return (
               <div
                 key={`${e.movie.id}-${globalIndex}`}
-                onClick={() => onSelectMovie(e.movie.title, e.movie.year?.toString())}
+                onClick={() => onSelectMovieId(e.movie.id)}
                 className="flex cursor-pointer items-center gap-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] px-5 py-4 transition-colors hover:border-[var(--color-amber)] hover:bg-[var(--color-card-hover)]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] font-mono text-xs text-[var(--color-muted)]">
@@ -343,13 +343,12 @@ function RatingHistoryTab({
         </div>
       )}
 
-      {/* Controles de Paginação */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-4">
           <button
             disabled={currentPage === 1}
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className="rounded-lg border border-[var(--color-border)] px-3 py-1 font-mono text-xs text-[var(--color-foreground)] transition-opacity disabled:opacity-30 hover:border-[var(--color-amber)] cursor-pointer"
+            className="cursor-pointer rounded-lg border border-[var(--color-border)] px-3 py-1 font-mono text-xs text-[var(--color-foreground)] transition-opacity hover:border-[var(--color-amber)] disabled:opacity-30"
           >
             ← Anterior
           </button>
@@ -359,7 +358,7 @@ function RatingHistoryTab({
           <button
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            className="rounded-lg border border-[var(--color-border)] px-3 py-1 font-mono text-xs text-[var(--color-foreground)] transition-opacity disabled:opacity-30 hover:border-[var(--color-amber)] cursor-pointer"
+            className="cursor-pointer rounded-lg border border-[var(--color-border)] px-3 py-1 font-mono text-xs text-[var(--color-foreground)] transition-opacity hover:border-[var(--color-amber)] disabled:opacity-30"
           >
             Próxima →
           </button>
@@ -371,10 +370,10 @@ function RatingHistoryTab({
 
 function RateMovieTab({
   userId,
-  onSelectMovie,
+  onSelectMovieId,
 }: {
   userId: number;
-  onSelectMovie: (title: string, year?: string) => void;
+  onSelectMovieId: (movieId: number) => void;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Movie[]>([]);
@@ -434,7 +433,7 @@ function RateMovieTab({
           className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] py-3.5 pl-11 pr-4 font-body text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] outline-none transition-colors focus:border-[var(--color-amber)] focus:ring-1 focus:ring-[var(--color-amber-glow)]"
         />
         {searching && (
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-xs text-[var(--color-muted)] animate-pulse">
+          <span className="animate-pulse absolute right-4 top-1/2 -translate-y-1/2 font-mono text-xs text-[var(--color-muted)]">
             searching…
           </span>
         )}
@@ -449,7 +448,7 @@ function RateMovieTab({
           {results.map((movie) => (
             <div
               key={movie.id}
-              onClick={() => onSelectMovie(movie.title, movie.year?.toString())}
+              onClick={() => onSelectMovieId(movie.id)}
               className="flex cursor-pointer items-center gap-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] px-5 py-4 transition-colors hover:border-[var(--color-amber)] hover:bg-[var(--color-card-hover)]"
             >
               <div className="min-w-0 flex-1">
@@ -481,7 +480,7 @@ function RateMovieTab({
                   <button
                     disabled={!ratings[movie.id] || submitting[movie.id]}
                     onClick={() => submitRating(movie)}
-                    className="rounded-lg bg-[var(--color-amber)] px-4 py-1.5 font-body text-sm font-medium text-[#0a0a0e] transition-opacity disabled:opacity-30 hover:opacity-90 cursor-pointer"
+                    className="cursor-pointer rounded-lg bg-[var(--color-amber)] px-4 py-1.5 font-body text-sm font-medium text-[#0a0a0e] transition-opacity hover:opacity-90 disabled:opacity-30"
                   >
                     {submitting[movie.id] ? '…' : 'Save'}
                   </button>
@@ -510,10 +509,10 @@ function RateMovieTab({
 
 function RecommendationsTab({
   userId,
-  onSelectMovie,
+  onSelectMovieId,
 }: {
   userId: number;
-  onSelectMovie: (title: string, year?: string) => void;
+  onSelectMovieId: (movieId: number) => void;
 }) {
   const [recs, setRecs] = useState<MovieRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -526,8 +525,6 @@ function RecommendationsTab({
       setError(null);
 
       const recommendations = await api.getRecommendations(userId);
-
-      // Garante que apenas as 5 primeiras sejam exibidas
       setRecs(recommendations.slice(0, 5));
       setFetched(true);
     } catch (e) {
@@ -537,13 +534,7 @@ function RecommendationsTab({
     }
   };
 
-  useEffect(() => {
-    setRecs([]);
-    setFetched(false);
-    setError(null);
-  }, [userId]);
-
-  // Estado inicial
+  // Sem chamada automática no useEffect
   if (!fetched && !loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-5 py-20">
@@ -553,7 +544,7 @@ function RecommendationsTab({
 
         <button
           onClick={fetchRecommendations}
-          className="rounded-xl bg-[var(--color-amber)] px-8 py-3 font-body text-sm font-semibold text-[#0a0a0e] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.98] cursor-pointer"
+          className="cursor-pointer rounded-xl bg-[var(--color-amber)] px-8 py-3 font-body text-sm font-semibold text-[#0a0a0e] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.98]"
         >
           Get Recommendations
         </button>
@@ -561,18 +552,16 @@ function RecommendationsTab({
     );
   }
 
-  // Carregando
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="font-mono text-sm text-[var(--color-muted)] animate-pulse">
+        <span className="animate-pulse font-mono text-sm text-[var(--color-muted)]">
           Crunching the algorithm…
         </span>
       </div>
     );
   }
 
-  // Erro
   if (error) {
     return (
       <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 text-center">
@@ -582,7 +571,7 @@ function RecommendationsTab({
 
         <button
           onClick={fetchRecommendations}
-          className="font-mono text-xs text-[var(--color-amber)] underline cursor-pointer"
+          className="cursor-pointer font-mono text-xs text-[var(--color-amber)] underline"
         >
           Try again
         </button>
@@ -590,14 +579,12 @@ function RecommendationsTab({
     );
   }
 
-  // Nenhuma recomendação
   if (!recs.length) {
     return (
       <div className="py-16 text-center text-[var(--color-muted)]">
         <p className="font-display italic">
           No recommendations available yet.
         </p>
-
         <p className="mt-1 text-sm">
           Rate more movies to improve results.
         </p>
@@ -605,7 +592,6 @@ function RecommendationsTab({
     );
   }
 
-  // Recomendações
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -615,7 +601,7 @@ function RecommendationsTab({
 
         <button
           onClick={fetchRecommendations}
-          className="font-mono text-xs text-[var(--color-amber)] hover:underline cursor-pointer"
+          className="cursor-pointer font-mono text-xs text-[var(--color-amber)] hover:underline"
         >
           Refresh
         </button>
@@ -627,7 +613,7 @@ function RecommendationsTab({
             key={`${recommendation.movie_id}-${index}`}
             recommendation={recommendation}
             position={index + 1}
-            onSelect={onSelectMovie}
+            onSelect={onSelectMovieId}
           />
         ))}
       </div>
@@ -638,7 +624,7 @@ function RecommendationsTab({
 export default function App() {
   const [userId, setUserId] = useState<number>(1);
   const [tab, setTab] = useState<Tab>('history');
-  const [selectedMovie, setSelectedMovie] = useState<{ title: string; year?: string } | null>(
+  const [selectedMovie, setSelectedMovie] = useState<{ id?: number; title?: string; year?: string } | null>(
     null
   );
 
@@ -678,7 +664,7 @@ export default function App() {
                   setUserId(u.id);
                   setTab('history');
                 }}
-                className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 font-body text-sm transition-all cursor-pointer ${u.id === userId
+                className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-2.5 font-body text-sm transition-all ${u.id === userId
                   ? 'border-[var(--color-amber)] bg-[var(--color-amber-glow)] text-[var(--color-amber)]'
                   : 'border-[var(--color-border-subtle)] bg-[var(--color-card)] text-[var(--color-muted)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]'
                   }`}
@@ -703,7 +689,7 @@ export default function App() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 rounded-lg py-2.5 font-body text-sm font-medium transition-all cursor-pointer ${t.id === tab
+              className={`flex-1 cursor-pointer rounded-lg py-2.5 font-body text-sm font-medium transition-all ${t.id === tab
                 ? 'bg-[var(--color-surface)] text-[var(--color-foreground)] shadow-sm'
                 : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
                 }`}
@@ -719,21 +705,24 @@ export default function App() {
             <RatingHistoryTab
               key={userId}
               userId={userId}
-              onSelectMovie={(title, year) => setSelectedMovie({ title, year })}
+              onSelectMovieId={(id) => setSelectedMovie({ id })
+              }
             />
           )}
+
           {tab === 'rate' && (
             <RateMovieTab
               key={userId}
               userId={userId}
-              onSelectMovie={(title, year) => setSelectedMovie({ title, year })}
+              onSelectMovieId={(id) => setSelectedMovie({ id })}
             />
           )}
+
           {tab === 'recommend' && (
             <RecommendationsTab
               key={userId}
               userId={userId}
-              onSelectMovie={(title, year) => setSelectedMovie({ title, year })}
+              onSelectMovieId={(id) => setSelectedMovie({ id })}
             />
           )}
         </main>
@@ -741,8 +730,7 @@ export default function App() {
         {/* Modal OMDb */}
         {selectedMovie && (
           <MovieDetailsModal
-            title={selectedMovie.title}
-            year={selectedMovie.year}
+            identifier={selectedMovie}
             onClose={() => setSelectedMovie(null)}
           />
         )}

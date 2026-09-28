@@ -1,113 +1,78 @@
-import time
-from datetime import datetime
-from typing import Dict, Tuple, Optional
-from fastapi import HTTPException
+from typing import List, Any
+from repositories.rating_repository import RatingRepository
+from repositories.movie_repository import MovieRepository
+from repositories.user_repository import UserRepository
+from repositories.recommendation_repository import RecommendationRepository
 from schemas.rating_schema import (
     AvaliacaoSchema,
     AvaliacaoResponseSchema,
     UserHistoryItemSchema,
-    UserRatingsResponseSchema
+    UserRatingsResponseSchema,
 )
+from utils.formatters import format_timestamp
+
 
 class RatingService:
-    def __init__(self, matrix, movie_titles, timestamps_dict: Optional[Dict[Tuple[int, int], int]] = None):
-        self.matrix = matrix
-        self.movie_titles = movie_titles
-        self.timestamps_dict = timestamps_dict if timestamps_dict is not None else {}
-
-    def _formatar_timestamp(self, user_id: int, movie_id: int) -> Optional[str]:
-        u_id = int(user_id)
-        m_id = int(movie_id)
-
-        ts = self.timestamps_dict.get((u_id, m_id))
-        if ts is None:
-            ts = self.timestamps_dict.get((str(u_id), str(m_id)))
-
-        if ts is not None:
-            try:
-                return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d %H:%M:%S')
-            except (ValueError, TypeError, OverflowError):
-                return None
-
-        return None
+    def __init__(
+        self,
+        rating_repo: RatingRepository,
+        movie_repo: MovieRepository,
+        user_repo: UserRepository,
+        recommendation_repo: RecommendationRepository,
+    ):
+        self.rating_repo = rating_repo
+        self.movie_repo = movie_repo
+        self.user_repo = user_repo
+        self.recommendation_repo = recommendation_repo
 
     async def obter_avaliacoes_usuario(self, user_id: int) -> UserRatingsResponseSchema:
-        if user_id not in self.matrix.index:
-            raise HTTPException(
-                status_code=404,
-                detail=f"UserID {user_id} não encontrado na base de dados."
-            )
+        if not self.user_repo.exists(user_id):
+            raise ValueError(f"UserID {user_id} não encontrado na base de dados.")
 
-        user_row_idx = self.matrix.index.get_loc(user_id)
-        user_vector = self.matrix.values[user_row_idx]
-
+        ratings = self.rating_repo.get_user_ratings(user_id)
         avaliacoes = []
-        for col_idx, rating in enumerate(user_vector):
-            if rating > 0:
-                movie_id = int(self.matrix.columns[col_idx])
-                titulo = self.movie_titles.get(movie_id, "Título Desconhecido")
-                data_fmt = self._formatar_timestamp(user_id, movie_id)
-                
-                avaliacoes.append(
-                    UserHistoryItemSchema(
-                        movie_id=movie_id,
-                        titulo=titulo,
-                        nota=float(rating),
-                        data_avaliacao=data_fmt
-                    )
-                )
 
-        avaliacoes = sorted(
-            avaliacoes, 
-            key=lambda x: (x.nota, x.data_avaliacao or ""), 
-            reverse=True
-        )
+        for r in ratings:
+            movie = self.movie_repo.get_by_id(r.movie_id)
+            titulo = movie.title if movie else "Título Desconhecido"
+
+            avaliacoes.append(
+                UserHistoryItemSchema(
+                    movie_id=r.movie_id,
+                    titulo=titulo,
+                    nota=float(r.rating),
+                    data_avaliacao=format_timestamp(r.timestamp),
+                )
+            )
 
         return UserRatingsResponseSchema(
             user_id=user_id,
             total_avaliacoes=len(avaliacoes),
-            avaliacoes=avaliacoes
+            avaliacoes=avaliacoes,
         )
 
-    async def registrar_avaliacao(self, avaliacao: AvaliacaoSchema, ratings_file_path: str = "../DATA/ml-1m/ratings.dat") -> AvaliacaoResponseSchema:
+    async def registrar_avaliacao(self, avaliacao: AvaliacaoSchema) -> AvaliacaoResponseSchema:
         user_id = avaliacao.user_id
         movie_id = avaliacao.movie_id
         nota = avaliacao.nota
 
-        if movie_id not in self.movie_titles:
-            raise HTTPException(
-                status_code=404,
-                detail=f"MovieID {movie_id} não existe no catálogo de filmes."
-            )
+        # 1. Valida existência do filme e do usuário
+        if not self.movie_repo.get_by_id(movie_id):
+            raise ValueError(f"MovieID {movie_id} não existe no catálogo de filmes.")
 
-        timestamp_atual = int(time.time())
-        data_formatada = datetime.fromtimestamp(timestamp_atual).strftime('%Y-%m-%d %H:%M:%S')
+        if not self.user_repo.exists(user_id):
+            raise ValueError(f"UserID {user_id} não existe na base de dados.")
 
-        # Atualiza matriz e dict em memória
-        if movie_id not in self.matrix.columns:
-            self.matrix[movie_id] = 0.0
+        # 2. Persiste / Atualiza a avaliação no SQLite
+        rating_entry = self.rating_repo.save_or_update_rating(user_id, movie_id, nota)
 
-        if user_id not in self.matrix.index:
-            self.matrix.loc[user_id] = 0.0
-
-        self.matrix.loc[user_id, movie_id] = nota
-        self.timestamps_dict[(user_id, movie_id)] = timestamp_atual
-
-        # Persiste em disco
-        linha_dat = f"{user_id}::{movie_id}::{nota}::{timestamp_atual}\n"
-        try:
-            with open(ratings_file_path, "a", encoding="utf-8") as f:
-                f.write(linha_dat)
-        except IOError as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Erro ao persistir avaliação no arquivo: {str(e)}"
-            )
+        # 3. Invalida o cache de recomendações do usuário
+        self.recommendation_repo.clear_user_recommendations(user_id)
 
         return AvaliacaoResponseSchema(
             message="Avaliação registrada com sucesso!",
             user_id=user_id,
             movie_id=movie_id,
             nota=nota,
-            data_avaliacao=data_formatada
+            data_avaliacao=format_timestamp(rating_entry.timestamp),
         )
