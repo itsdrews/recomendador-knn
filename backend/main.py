@@ -1,82 +1,77 @@
 from contextlib import asynccontextmanager
+import joblib
+import pandas as pd
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import joblib
-from controllers.recommendation_controller import router as recommendation_router
-from controllers.rating_controller import router as rating_router
-from controllers.movie_controller import router as movie_router
-import pandas as pd
+
+from database import Base, engine
+from controllers import (
+    movie_router,
+    rating_router,
+    recommendation_router,
+    user_router,
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 1. Garante que as tabelas existem no SQLite
+    Base.metadata.create_all(bind=engine)
 
-    #  Carrega apenas o KNN e os Títulos via .pkl (que não mudam com frequência)
+    # 2. Carrega o modelo de Machine Learning treinado
     knn_model = joblib.load("modelo_knn_users.pkl")
-    movie_titles = joblib.load("movie_titles.pkl")
 
-    #  Lê o ratings.dat (incluindo todas as notas gravadas via POST /avaliar)
-    ratings_df = pd.read_csv(
-        '../DATA/ml-1m/ratings.dat',
-        sep='::',
-        engine='python',
-        header=None,
-        names=['user_id', 'movie_id', 'rating', 'timestamp']
-    )
+    # 3. Monta a matriz Usuário-Item consultando a tabela 'ratings' do SQLite
+    query = "SELECT user_id, movie_id, rating FROM ratings"
+    ratings_df = pd.read_sql(query, con=engine)
 
-    # Garante os tipos corretos
-    ratings_df['user_id'] = ratings_df['user_id'].astype(int)
-    ratings_df['movie_id'] = ratings_df['movie_id'].astype(int)
-    ratings_df['rating'] = ratings_df['rating'].astype(float)
-    ratings_df['timestamp'] = ratings_df['timestamp'].astype(int)
+    if not ratings_df.empty:
+        # Pivot das avaliações para construir a matriz
+        user_item_matrix = ratings_df.pivot(
+            index="user_id", columns="movie_id", values="rating"
+        ).fillna(0.0)
+    else:
+        # Matriz vazia de fallback caso o banco esteja limpo
+        user_item_matrix = pd.DataFrame()
 
-    #  Ordena e remove duplicatas mantendo SEMPRE a avaliação mais recente (keep='last')
-    ratings_df = ratings_df.sort_values(by='timestamp', ascending=True)
-    ratings_df_clean = ratings_df.drop_duplicates(subset=['user_id', 'movie_id'], keep='last')
-
-    #  Reconstrói a matriz Usuário-Item na memória
-    user_item_matrix = ratings_df_clean.pivot(
-        index='user_id',
-        columns='movie_id',
-        values='rating'
-    ).fillna(0.0)
-
-    #  Reconstrói o dicionário de timestamps na memória
-    timestamps_dict = {
-        (int(row.user_id), int(row.movie_id)): int(row.timestamp)
-        for row in ratings_df_clean.itertuples(index=False)
-    }
-    
+    # 4. Mantém no app.state apenas os artefatos estritamente necessários para o algoritmo KNN
     app.state.store = {
         "knn": knn_model,
-        "movie_titles": movie_titles,
         "user_item_matrix": user_item_matrix,
-        "timestamps_dict": timestamps_dict
     }
 
-    print("Artefatos e base de avaliações prontos no app.state.store")
+    print("🚀 Aplicação inicializada: Tabelas verificadas e modelo KNN carregado no app.state.store")
+
     yield
+
+    # Limpeza de recursos no encerramento da API
     app.state.store.clear()
 
-app = FastAPI(title="API de Recomendação de Filmes (MovieLens + OMDb)", lifespan=lifespan)
 
-# Define as origens permitidas (URLs do React em desenvolvimento e produção)
+app = FastAPI(
+    title="API de Recomendação de Filmes (MovieLens + OMDb)",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+# Configuração de CORS para permitir requisições do Frontend
 origins = [
-    "http://localhost:3000",  # Porta padrão do Create React App / Next.js
-    "http://localhost:5173",  # Porta padrão do Vite
+    "http://localhost:3000",
+    "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
 ]
 
-# Adiciona o middleware de CORS à aplicação
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # Permite requisições apenas das origens listadas
-    allow_credentials=True,      # Permite envio de cookies/headers de autorização
-    allow_methods=["*"],         # Permite todos os métodos HTTP (GET, POST, OPTIONS, etc.)
-    allow_headers=["*"],         # Permite todos os cabeçalhos
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Registra os roteadores
-app.include_router(recommendation_router)
-app.include_router(rating_router)
+# Registro dos Routers/Controllers
+app.include_router(user_router)
 app.include_router(movie_router)
+app.include_router(rating_router)
+app.include_router(recommendation_router)

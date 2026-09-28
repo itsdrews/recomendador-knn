@@ -1,43 +1,35 @@
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from dependencies import get_rating_service
 from schemas.rating_schema import (
-    UserRatingsResponseSchema,
+    AvaliacaoResponseSchema,
     AvaliacaoSchema,
-    AvaliacaoResponseSchema
+    UserRatingsResponseSchema,
 )
 from services.rating_service import RatingService
 
 router = APIRouter(prefix="/avaliacoes", tags=["Avaliações"])
 
+
 @router.get("/{user_id}", response_model=UserRatingsResponseSchema)
-async def obter_avaliacoes(user_id: int, request: Request):
-    """Retorna o histórico de avaliações de um usuário."""
-    matrix = request.app.state.store["user_item_matrix"]
-    movie_titles = request.app.state.store["movie_titles"]
-    timestamps_dict = request.app.state.store.get("timestamps_dict", {})
-    
-    service = RatingService(matrix, movie_titles, timestamps_dict)
-    return await service.obter_avaliacoes_usuario(user_id)
+async def obter_avaliacoes(
+    user_id: int,
+    rating_service: RatingService = Depends(get_rating_service),
+):
+    """Retorna o histórico de avaliações de um usuário registrado no SQLite."""
+    try:
+        return await rating_service.obter_avaliacoes_usuario(user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post("", response_model=AvaliacaoResponseSchema, status_code=status.HTTP_201_CREATED)
-async def avaliar_filme(avaliacao: AvaliacaoSchema, request: Request):
-    """Registra uma nova nota de filme no sistema."""
-    matrix = request.app.state.store["user_item_matrix"]
-    movie_titles = request.app.state.store["movie_titles"]
-    timestamps_dict = request.app.state.store.get("timestamps_dict", {})
-
-    service = RatingService(matrix, movie_titles, timestamps_dict)
-    return await service.registrar_avaliacao(avaliacao)
-
-@router.get("/{user_id}", response_model=UserRatingsResponseSchema)
-async def obter_avaliacoes(user_id: int, request: Request):
-    """
-    Retorna a lista completa de filmes avaliados por um determinado usuário.
-    """
-    knn = request.app.state.store["knn"]
-    matrix = request.app.state.store["user_item_matrix"]
-    movie_titles = request.app.state.store["movie_titles"]
-    timestamps_dict = request.app.state.store.get("timestamps_dict",{})
-
-    service = RatingService(knn, matrix, movie_titles,timestamps_dict)
-    return await service.obter_avaliacoes_usuario(user_id)
+async def avaliar_filme(
+    avaliacao: AvaliacaoSchema,
+    rating_service: RatingService = Depends(get_rating_service),
+):
+    """Registra ou atualiza uma nota de filme e invalida o cache de recomendações."""
+    try:
+        return await rating_service.registrar_avaliacao(avaliacao)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
