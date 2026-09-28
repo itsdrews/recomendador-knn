@@ -16,3 +16,4 @@ class UserModel(Base):
     # Relacionamentos
     ratings = relationship("RatingModel", back_populates="user", cascade="all, delete-orphan")
     recommendations = relationship("UserRecommendationModel", back_populates="user", cascade="all, delete-orphan")
+    

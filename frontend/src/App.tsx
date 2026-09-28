@@ -1,15 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { RatingEntry, Movie, MovieRecommendation, MovieDetails } from './api/api';
+import type { RatingEntry, Movie, MovieRecommendation, MovieDetails, User } from './api/api';
 import { RecommendationCard } from './components/RecommendationCard';
 import { api } from './api/api';
+import { UserSelectionScreen } from './pages/UserSelectionScreen';
 
-const USERS = [
-  { id: 1, name: 'Alex M.', avatar: 'AM' },
-  { id: 2, name: 'Jordan K.', avatar: 'JK' },
-  { id: 3, name: 'Sam R.', avatar: 'SR' },
-  { id: 4, name: 'Taylor B.', avatar: 'TB' },
-  { id: 5, name: 'Morgan L.', avatar: 'ML' },
-];
 
 type Tab = 'history' | 'rate' | 'recommend';
 type SortOption = 'RECENT' | 'OLD' | 'YEAR_DESC' | 'YEAR_ASC';
@@ -622,13 +616,18 @@ function RecommendationsTab({
 }
 
 export default function App() {
-  const [userId, setUserId] = useState<number>(1);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [tab, setTab] = useState<Tab>('history');
   const [selectedMovie, setSelectedMovie] = useState<{ id?: number; title?: string; year?: string } | null>(
     null
   );
 
-  const currentUser = USERS.find((u) => u.id === userId) ?? USERS[0];
+  // Se nenhum usuário for verificado/confirmado, mostra a tela do Form ID
+  if (!currentUser) {
+    return <UserSelectionScreen onConfirmUser={(user) => setCurrentUser(user)} />;
+  }
+  // Extrai o ID do usuário confirmado
+  const userId = currentUser.user_id;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'history', label: 'Rating History' },
@@ -651,37 +650,7 @@ export default function App() {
           </h1>
         </header>
 
-        {/* User Selector */}
-        <section className="mb-8">
-          <p className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--color-muted)]">
-            Select Profile
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {USERS.map((u) => (
-              <button
-                key={u.id}
-                onClick={() => {
-                  setUserId(u.id);
-                  setTab('history');
-                }}
-                className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-2.5 font-body text-sm transition-all ${u.id === userId
-                  ? 'border-[var(--color-amber)] bg-[var(--color-amber-glow)] text-[var(--color-amber)]'
-                  : 'border-[var(--color-border-subtle)] bg-[var(--color-card)] text-[var(--color-muted)] hover:border-[var(--color-border)] hover:text-[var(--color-foreground)]'
-                  }`}
-              >
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full font-mono text-xs ${u.id === userId
-                    ? 'bg-[var(--color-amber)] text-[#0a0a0e]'
-                    : 'bg-[var(--color-surface)] text-[var(--color-muted)]'
-                    }`}
-                >
-                  {u.avatar}
-                </span>
-                {u.name}
-              </button>
-            ))}
-          </div>
-        </section>
+
 
         {/* Tab Nav */}
         <div className="mb-6 flex gap-1 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] p-1">

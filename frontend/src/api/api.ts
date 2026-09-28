@@ -1,8 +1,14 @@
 const BASE_URL = 'http://localhost:8000';
 
-// ==========================================
-// INTERFACES (Compatibilizadas com Pydantic)
-// ==========================================
+
+export interface User {
+  user_id: number;
+  name?: string;
+  gender: 'M' | 'F' | 'O';
+  age: number;
+  occupation: number;
+  zip_code: string;
+}
 
 export interface UserHistoryItem {
   movie_id: number;
@@ -151,5 +157,31 @@ export const api = {
       ano: rawData.ano ?? 'N/A',
       diretor: rawData.diretor ?? 'N/A',
     };
+  },
+
+  async getUserById(userId: number): Promise<User> {
+    const response = await fetch(`${BASE_URL}/users/${userId}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Usuário não encontrado.');
+      }
+      throw new Error('Falha ao buscar dados do usuário.');
+    }
+    return response.json();
+  },
+
+  async createRandomUser(): Promise<User> {
+    const response = await fetch(`${BASE_URL}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Falha ao criar usuário aleatório no servidor.');
+    }
+
+    return response.json();
   },
 };

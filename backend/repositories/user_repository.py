@@ -1,6 +1,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session
 from models.user_model import UserModel
+from sqlalchemy import func
 
 
 class UserRepository:
@@ -26,3 +27,7 @@ class UserRepository:
             .first()
             is not None
         )
+    
+    def get_max_id(self) -> int | None:
+        """Retorna o maior user_id existente."""
+        return self.db.query(func.max(UserModel.user_id)).scalar()
