@@ -9,7 +9,7 @@ router = APIRouter(prefix="/recomendar", tags=["Recomendações"])
 @router.get("/{user_id}", response_model=RecommendationResponseSchema)
 async def recomendar_filmes(
     user_id: int,
-    top_k: int = 5,
+    top_k: int = 10,
     use_cache: bool = True,
     recommendation_service: RecommendationService = Depends(get_recommendation_service),
 ):

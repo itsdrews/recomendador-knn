@@ -100,8 +100,8 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
 
         {/* Cabeçalho */}
         <div className="mb-8 text-center">
-          <p className="mb-1 font-mono text-xs uppercase tracking-widest text-[var(--color-amber)]">
-            CineMatch System
+          <p className="mb-1 font-mono text-xl uppercase tracking-widest text-[var(--color-amber)]">
+            DJG Match
           </p>
           <h1 className="font-display text-3xl font-semibold leading-tight text-[var(--color-foreground)]">
             Acessar <span className="font-light italic">Perfil</span>
@@ -152,7 +152,7 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
             disabled={loading || creatingRandom}
             className="w-full cursor-pointer rounded-xl bg-[var(--color-amber)] py-3 font-body text-sm font-semibold text-[#0a0a0e] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {loading ? 'Criando...' : 'Novo Usuário Aleatório'}
+            {loading ? 'Criando...' : 'Novo Usuário Aleatório (Cold Start)'}
           </button>
         </form>
       </div>

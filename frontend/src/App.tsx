@@ -193,10 +193,10 @@ function RatingHistoryTab({
           return dateA - dateB;
         }
         if (sortBy === 'YEAR_DESC') {
-          return (b.movie.year || 0) - (a.movie.year || 0);
+          return (Number(b.movie.year) || 0) - (Number(a.movie.year) || 0);
         }
         if (sortBy === 'YEAR_ASC') {
-          return (a.movie.year || 0) - (b.movie.year || 0);
+          return (Number(a.movie.year) || 0) - (Number(b.movie.year) || 0);
         }
         return 0;
       });
@@ -501,6 +501,7 @@ function RateMovieTab({
   );
 }
 
+
 function RecommendationsTab({
   userId,
   onSelectMovieId,
@@ -511,40 +512,30 @@ function RecommendationsTab({
   const [recs, setRecs] = useState<MovieRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fetched, setFetched] = useState(false);
 
-  const fetchRecommendations = async () => {
+
+
+
+  const fetchRecommendations = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const recommendations = await api.getRecommendations(userId);
-      setRecs(recommendations.slice(0, 5));
-      setFetched(true);
+      setRecs(recommendations.slice(0, 10));
     } catch (e) {
       setError((e as Error).message || 'Erro ao buscar recomendações.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  // Sem chamada automática no useEffect
-  if (!fetched && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-5 py-20">
-        <p className="font-display text-xl italic text-[var(--color-foreground)]">
-          Ready for your next watch?
-        </p>
-
-        <button
-          onClick={fetchRecommendations}
-          className="cursor-pointer rounded-xl bg-[var(--color-amber)] px-8 py-3 font-body text-sm font-semibold text-[#0a0a0e] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-[0.98]"
-        >
-          Get Recommendations
-        </button>
-      </div>
-    );
-  }
+  // Busca inicial automatizada
+  useEffect(() => {
+    if (userId) {
+      fetchRecommendations();
+    }
+  }, [userId, fetchRecommendations]);
 
   if (loading) {
     return (
@@ -590,18 +581,18 @@ function RecommendationsTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="font-mono text-xs text-[var(--color-muted)]">
-          Top {recs.length} recommendations for you
+          Top {recs.length} recomendações para você!
         </p>
 
         <button
-          onClick={fetchRecommendations}
+          //onClick={fetchRecommendations}
           className="cursor-pointer font-mono text-xs text-[var(--color-amber)] hover:underline"
         >
           Refresh
         </button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {recs.map((recommendation, index) => (
           <RecommendationCard
             key={`${recommendation.movie_id}-${index}`}
@@ -611,108 +602,151 @@ function RecommendationsTab({
           />
         ))}
       </div>
-    </div>
+    </div >
   );
 }
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [tab, setTab] = useState<Tab>('history');
+  const [tab, setTab] = useState<Tab>('recommend');
   const [selectedMovie, setSelectedMovie] = useState<{ id?: number; title?: string; year?: string } | null>(
     null
   );
 
-  // Se nenhum usuário for verificado/confirmado, mostra a tela do Form ID
   if (!currentUser) {
     return <UserSelectionScreen onConfirmUser={(user) => setCurrentUser(user)} />;
   }
-  // Extrai o ID do usuário confirmado
-  const userId = currentUser.user_id;
+
+  const userId = currentUser.user_id ?? currentUser.id;
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'history', label: 'Rating History' },
-    { id: 'rate', label: 'Rate a Movie' },
-    { id: 'recommend', label: 'Recommendations' },
+    { id: 'recommend', label: 'Recomendações' },
+    { id: 'rate', label: 'Avaliar Filme' },
+    { id: 'history', label: 'Minhas Avaliações' },
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] px-4 py-8 sm:px-8">
-      <div className="mx-auto max-w-3xl">
-        {/* Header */}
-        <header className="mb-10">
-          <p className="mb-1 font-mono text-xs uppercase tracking-widest text-[var(--color-amber)]">
-            CineMatch
-          </p>
-          <h1 className="font-display text-4xl font-semibold leading-tight text-[var(--color-foreground)]">
-            Movie
-            <br />
-            <span className="font-light italic">Recommendations</span>
-          </h1>
-        </header>
+    <div className="min-h-screen w-full bg-[var(--color-background)] text-[var(--color-foreground)]">
+      {/* Header Fixo Estilo Netflix */}
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-background)]/90 px-6 py-4 backdrop-blur-md md:px-12">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2">
+            <span className="font-display text-2xl font-black tracking-wider text-yellow-600">
+              DJG MATCH
+            </span>
+          </div>
 
-
-
-        {/* Tab Nav */}
-        <div className="mb-6 flex gap-1 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] p-1">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex-1 cursor-pointer rounded-lg py-2.5 font-body text-sm font-medium transition-all ${t.id === tab
-                ? 'bg-[var(--color-surface)] text-[var(--color-foreground)] shadow-sm'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-foreground)]'
-                }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          <nav className="hidden items-center gap-6 md:flex">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`cursor-pointer font-body text-sm font-medium transition-colors ${t.id === tab
+                  ? 'font-semibold text-white'
+                  : 'text-[var(--color-muted)] hover:text-white'
+                  }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
         </div>
 
-        {/* Content */}
-        <main>
-          {tab === 'history' && (
-            <RatingHistoryTab
-              key={userId}
-              userId={userId}
-              onSelectMovieId={(id) => setSelectedMovie({ id })
-              }
-            />
-          )}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-yellow-600 font-mono text-xs font-bold text-white shadow">
+              {(currentUser.name || 'U').charAt(0).toUpperCase()}
+            </div>
+            <span className="hidden font-mono text-xs text-[var(--color-foreground)] sm:inline">
+              {currentUser.name || `Usuário #${userId}`}
+            </span>
+          </div>
 
-          {tab === 'rate' && (
-            <RateMovieTab
-              key={userId}
-              userId={userId}
-              onSelectMovieId={(id) => setSelectedMovie({ id })}
-            />
-          )}
+          <button
+            onClick={() => setCurrentUser(null)}
+            className="cursor-pointer rounded-md border border-[var(--color-border)] px-3 py-1 font-mono text-xs text-[var(--color-muted)] transition-colors hover:border-white hover:text-white"
+          >
+            Trocar
+          </button>
+        </div>
+      </header>
 
-          {tab === 'recommend' && (
-            <RecommendationsTab
-              key={userId}
-              userId={userId}
-              onSelectMovieId={(id) => setSelectedMovie({ id })}
-            />
-          )}
-        </main>
-
-        {/* Modal OMDb */}
-        {selectedMovie && (
-          <MovieDetailsModal
-            identifier={selectedMovie}
-            onClose={() => setSelectedMovie(null)}
-          />
-        )}
-
-        {/* Footer */}
-        <footer className="mt-16 flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-6">
-          <p className="font-mono text-xs text-[var(--color-muted)]">
-            Viewing as <span className="text-[var(--color-amber)]">{currentUser.name}</span> · User
-            #{userId}
-          </p>
-          <p className="font-mono text-xs text-[var(--color-muted)]">CineMatch v1</p>
-        </footer>
+      {/* Navegação Mobile */}
+      <div className="flex border-b border-[var(--color-border-subtle)] bg-[var(--color-card)] px-4 py-2 md:hidden">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-1 py-2 text-center font-body text-xs font-medium ${t.id === tab
+              ? 'border-b-2 border-red-600 font-semibold text-white'
+              : 'text-[var(--color-muted)]'
+              }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {/* Conteúdo Principal */}
+      <main className="mx-auto max-w-7xl px-6 py-8 md:px-12">
+        <section className="mb-6">
+          <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+            {tab === 'recommend' && 'Recomendados para Você'}
+            {tab === 'rate' && 'Explore e Avalie Filmes'}
+            {tab === 'history' && 'Seu Histórico de Avaliações'}
+          </h1>
+          <p className="font-mono text-xs text-[var(--color-muted)]">
+            {tab === 'recommend' && 'Com base nas suas avaliações e preferências no CineMatch'}
+            {tab === 'rate' && 'Pesquise e atribua estrelas aos filmes que você já assistiu'}
+            {tab === 'history' && 'Acompanhe todas as suas notas e datas de avaliação'}
+          </p>
+        </section>
+
+        {/* 
+          Todas as abas permanecem montadas em memória para preservar o estado e evitar novos carregamentos na API.
+          Apenas a aba ativa visível via CSS.
+        */}
+        <div className={tab === 'history' ? 'block' : 'hidden'}>
+          <RatingHistoryTab
+            userId={userId}
+            onSelectMovieId={(id) => setSelectedMovie({ id })}
+          />
+        </div>
+
+        <div className={tab === 'rate' ? 'block' : 'hidden'}>
+          <RateMovieTab
+            userId={userId}
+            onSelectMovieId={(id) => setSelectedMovie({ id })}
+          />
+        </div>
+
+        <div className={tab === 'recommend' ? 'block' : 'hidden'}>
+          <RecommendationsTab
+            userId={userId}
+            onSelectMovieId={(id) => setSelectedMovie({ id })}
+          />
+        </div>
+      </main>
+
+      {/* Modal OMDb */}
+      {selectedMovie && (
+        <MovieDetailsModal
+          identifier={selectedMovie}
+          onClose={() => setSelectedMovie(null)}
+        />
+      )}
+
+      {/* Footer */}
+      <footer className="mt-auto border-t border-[var(--color-border-subtle)] px-6 py-8 text-center md:px-12">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
+          <p className="font-mono text-xs text-[var(--color-muted)]">
+            Perfil ativo: <span className="text-white">{currentUser.name || `ID ${userId}`}</span> · ID #{userId}
+          </p>
+          <p className="font-mono text-xs text-[var(--color-muted)]">
+            DJG-MATCH © 2026
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

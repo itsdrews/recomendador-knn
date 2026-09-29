@@ -54,6 +54,7 @@ export interface RatingEntry {
   movie: Movie;
   rating: number;
   timestamp?: string;
+  year?: string;
 }
 
 export interface MovieRecommendation {
