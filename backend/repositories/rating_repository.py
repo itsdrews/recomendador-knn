@@ -1,5 +1,6 @@
 import time
-from typing import List, Optional
+from typing import List
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from models.rating_model import RatingModel
 
@@ -25,11 +26,32 @@ class RatingRepository:
             .count()
         )
 
+    def get_top_rated_movies(self, limit: int = 10, min_ratings: int = 100):
+        """Retorna os filmes mais bem avaliados globalmente."""
+        return (
+            self.db.query(
+                RatingModel.movie_id,
+                func.avg(RatingModel.rating).label("average_rating"),
+                func.count(RatingModel.movie_id).label("rating_count"),
+            )
+            .group_by(RatingModel.movie_id)
+            .having(func.count(RatingModel.movie_id) >= min_ratings)
+            .order_by(
+                func.avg(RatingModel.rating).desc(),
+                func.count(RatingModel.movie_id).desc(),
+            )
+            .limit(limit)
+            .all()
+        )
+
     def save_or_update_rating(self, user_id: int, movie_id: int, rating: float) -> RatingModel:
         """Insere uma nova nota ou atualiza uma avaliação existente."""
         existing_rating = (
             self.db.query(RatingModel)
-            .filter(RatingModel.user_id == user_id, RatingModel.movie_id == movie_id)
+            .filter(
+                RatingModel.user_id == user_id,
+                RatingModel.movie_id == movie_id,
+            )
             .first()
         )
 
@@ -50,4 +72,5 @@ class RatingRepository:
 
         self.db.commit()
         self.db.refresh(rating_entry)
+
         return rating_entry

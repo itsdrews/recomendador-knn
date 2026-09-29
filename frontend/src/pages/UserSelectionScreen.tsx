@@ -30,15 +30,18 @@ interface UserSelectionScreenProps {
   onConfirmUser: (user: User) => void;
 }
 
-export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps) {
+export function UserSelectionScreen({
+  onConfirmUser,
+}: UserSelectionScreenProps) {
   const [inputUserId, setInputUserId] = useState('');
   const [pendingUser, setPendingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [creatingRandom, setCreatingRandom] = useState(false)
+  const [creatingRandom, setCreatingRandom] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const idNum = Number(inputUserId);
 
     if (!inputUserId || Number.isNaN(idNum) || idNum <= 0) {
@@ -49,10 +52,9 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
     setLoading(true);
     setError(null);
 
-
     try {
-      // Requisita no banco de dados através da sua API
       const user = await api.getUserById(idNum);
+
       if (user) {
         setPendingUser(user);
       } else {
@@ -64,24 +66,20 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
       setLoading(false);
     }
   };
-  // Função de clique do botão
+
   const handleCreateRandomUser = async () => {
     setCreatingRandom(true);
     setError(null);
 
     try {
-      // 1. Chama o endpoint POST que gera o usuário aleatório
       const newUser = await api.createRandomUser();
-
-      // 2. Seta o usuário pendente para abrir o modal de confirmação
       setPendingUser(newUser);
     } catch (err: any) {
-      setError(err.message || 'Erro ao gerar novo usuário.');
+      setError(err.message || 'Erro ao criar novo usuário.');
     } finally {
       setCreatingRandom(false);
     }
   };
-
 
   const handleConfirm = () => {
     if (pendingUser) {
@@ -103,20 +101,26 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
           <p className="mb-1 font-mono text-xl uppercase tracking-widest text-[var(--color-amber)]">
             DJG Match
           </p>
+
           <h1 className="font-display text-3xl font-semibold leading-tight text-[var(--color-foreground)]">
             Acessar <span className="font-light italic">Perfil</span>
           </h1>
+
           <p className="mt-2 text-xs text-[var(--color-muted)]">
             Digite o ID numérico do usuário para prosseguir.
           </p>
         </div>
 
-        {/* Formulário APENAS com campo de ID */}
+        {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="userId" className="mb-1.5 block font-mono text-xs text-[var(--color-muted)]">
+            <label
+              htmlFor="userId"
+              className="mb-1.5 block font-mono text-xs text-[var(--color-muted)]"
+            >
               ID DO USUÁRIO
             </label>
+
             <input
               id="userId"
               type="number"
@@ -124,11 +128,14 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
               value={inputUserId}
               onChange={(e) => {
                 setInputUserId(e.target.value);
-                if (error) setError(null);
+
+                if (error) {
+                  setError(null);
+                }
               }}
               placeholder="Ex: 1, 12, 100"
               className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 font-mono text-sm text-[var(--color-foreground)] placeholder-[var(--color-muted)] outline-none transition-colors focus:border-[var(--color-amber)]"
-              disabled={loading}
+              disabled={loading || creatingRandom}
               autoFocus
             />
           </div>
@@ -141,23 +148,24 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
 
           <button
             type="submit"
-            disabled={loading || !inputUserId}
+            disabled={loading || creatingRandom || !inputUserId}
             className="w-full cursor-pointer rounded-xl bg-[var(--color-amber)] py-3 font-body text-sm font-semibold text-[#0a0a0e] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? 'Buscando...' : 'Buscar Perfil'}
           </button>
+
           <button
             type="button"
             onClick={handleCreateRandomUser}
             disabled={loading || creatingRandom}
             className="w-full cursor-pointer rounded-xl bg-[var(--color-amber)] py-3 font-body text-sm font-semibold text-[#0a0a0e] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {loading ? 'Criando...' : 'Novo Usuário Aleatório (Cold Start)'}
+            {creatingRandom ? 'Criando...' : 'Novo Usuário'}
           </button>
         </form>
       </div>
 
-      {/* MODAL DE CONFIRMAÇÃO COM OS DADOS RETORNADOS DO GET */}
+      {/* Modal de confirmação */}
       {pendingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl">
@@ -166,46 +174,64 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
               <span className="rounded-full bg-[var(--color-amber-glow)] px-2.5 py-1 font-mono text-xs text-[var(--color-amber)]">
                 Perfil Encontrado
               </span>
+
               <h3 className="mt-3 font-display text-2xl font-bold text-[var(--color-foreground)]">
-                {pendingUser.name || `Usuário #${pendingUser.user_id}`}
+                Usuário #{pendingUser.user_id}
               </h3>
+
               <p className="font-mono text-xs text-[var(--color-muted)]">
                 ID da Conta: #{pendingUser.user_id}
               </p>
             </div>
 
-            {/* Atributos do UserModel retornados pelo backend */}
             <div className="space-y-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-4 font-mono text-xs">
+
               <div className="flex justify-between border-b border-[var(--color-border-subtle)] pb-2">
-                <span className="text-[var(--color-muted)]">Gênero:</span>
+                <span className="text-[var(--color-muted)]">
+                  Gênero:
+                </span>
+
                 <span className="font-medium text-[var(--color-foreground)]">
-                  {pendingUser.gender === 'M' ? 'Masculino (M)' : pendingUser.gender === 'F' ? 'Feminino (F)' : pendingUser.gender}
+                  {pendingUser.gender === 'M'
+                    ? 'Masculino (M)'
+                    : pendingUser.gender === 'F'
+                      ? 'Feminino (F)'
+                      : pendingUser.gender}
                 </span>
               </div>
 
               <div className="flex justify-between border-b border-[var(--color-border-subtle)] pb-2">
-                <span className="text-[var(--color-muted)]">Idade:</span>
+                <span className="text-[var(--color-muted)]">
+                  Idade:
+                </span>
+
                 <span className="font-medium text-[var(--color-foreground)]">
                   {pendingUser.age} anos
                 </span>
               </div>
 
               <div className="flex justify-between border-b border-[var(--color-border-subtle)] pb-2">
-                <span className="text-[var(--color-muted)]">Ocupação:</span>
+                <span className="text-[var(--color-muted)]">
+                  Ocupação:
+                </span>
+
                 <span className="font-medium text-[var(--color-amber)]">
-                  {OCCUPATION_MAP[pendingUser.occupation] || `Código ${pendingUser.occupation}`}
+                  {OCCUPATION_MAP[pendingUser.occupation] ||
+                    `Código ${pendingUser.occupation}`}
                 </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-[var(--color-muted)]">Código Postal/ Zip Code:</span>
+                <span className="text-[var(--color-muted)]">
+                  Código Postal / Zip Code:
+                </span>
+
                 <span className="font-medium text-[var(--color-foreground)]">
                   {pendingUser.zip_code}
                 </span>
               </div>
             </div>
 
-            {/* Ações de Confirmar ou Cancelar */}
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
@@ -214,6 +240,7 @@ export function UserSelectionScreen({ onConfirmUser }: UserSelectionScreenProps)
               >
                 Cancelar
               </button>
+
               <button
                 type="button"
                 onClick={handleConfirm}
