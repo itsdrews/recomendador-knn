@@ -15,42 +15,54 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
   return (
     <div
       onClick={() => onSelect(recommendation.movie_id)}
-      className="relative cursor-pointer overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] p-5 transition-colors hover:border-[var(--color-amber)] hover:bg-[var(--color-card-hover)]"
+      className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-card)] p-5 transition-all duration-200 hover:border-[var(--color-amber)] hover:bg-[var(--color-card-hover)] hover:shadow-lg"
     >
-      {/* Posição */}
-      <div className="absolute right-4 top-4 font-mono text-xs text-[var(--color-muted)]">
-        #{position}
-      </div>
-
-      <div className="flex gap-4">
+      {/* Bloco Superior: Poster à esquerda | Título, Ano e Diretor à direita */}
+      <div className="flex items-start gap-4">
         {/* Poster */}
         {recommendation.poster_url && (
           <img
             src={recommendation.poster_url}
             alt={recommendation.titulo}
-            className="h-24 w-16 shrink-0 rounded-md object-cover shadow"
+            className="w-28 aspect-[2/3] shrink-0 rounded-xl object-cover shadow-md border border-[var(--color-border-subtle)] transition-transform duration-200 group-hover:scale-[1.02]"
           />
         )}
 
-        <div className="min-w-0 flex-1">
-          {/* Título */}
-          <p className="pr-8 font-display text-base font-semibold leading-snug text-[var(--color-foreground)]">
-            {recommendation.titulo}
-          </p>
+        <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+          {/* Cabeçalho com Posição e Título */}
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-display text-lg font-bold leading-tight text-[var(--color-foreground)] transition-colors group-hover:text-[var(--color-amber)]">
+              {recommendation.titulo}
+            </h3>
 
-          {/* Informações */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--color-muted)]">
-            {recommendation.ano && <span>{recommendation.ano}</span>}
-            {recommendation.diretor && <span>• Dir: {recommendation.diretor}</span>}
+            <span className="shrink-0 rounded-md bg-[var(--color-surface)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--color-amber)] border border-[var(--color-border-subtle)]">
+              #{position}
+            </span>
+          </div>
+
+          {/* Ano e Diretor */}
+          <div className="space-y-0.5 font-mono text-xs text-[var(--color-muted)]">
+            {recommendation.ano && (
+              <p>
+                <strong className="text-[var(--color-foreground)]">Ano:</strong> {recommendation.ano}
+              </p>
+            )}
+            {recommendation.diretor && (
+              <p className="truncate">
+                <strong className="text-[var(--color-foreground)]">Direção:</strong> {recommendation.diretor}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Sinopse */}
+      {/* Bloco Inferior: Sinopse abaixo de tudo */}
       {recommendation.sinopse && (
-        <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[var(--color-muted)]">
-          {recommendation.sinopse}
-        </p>
+        <div className="mt-4 border-t border-[var(--color-border-subtle)] pt-3">
+          <p className="line-clamp-3 text-xs leading-relaxed text-[var(--color-muted)]">
+            {recommendation.sinopse}
+          </p>
+        </div>
       )}
     </div>
   );

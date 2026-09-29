@@ -614,156 +614,137 @@ export default function App() {
   );
 
   if (!currentUser) {
+    return (
+      <UserSelectionScreen
+        onConfirmUser={(user) => setCurrentUser(user)}
+      />
+    );
+  }
+
+  const userId = currentUser.user_id;
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'recommend', label: 'Recomendações' },
+    { id: 'rate', label: 'Avaliar Filme' },
+    { id: 'history', label: 'Minhas Avaliações' },
+  ];
+
   return (
-    <UserSelectionScreen
-      onConfirmUser={(user) => setCurrentUser(user)}
-    />
-  );
-}
-
-const userId = currentUser.user_id;
-
-const tabs: { id: Tab; label: string }[] = [
-  { id: 'recommend', label: 'Recomendações' },
-  { id: 'rate', label: 'Avaliar Filme' },
-  { id: 'history', label: 'Minhas Avaliações' },
-];
-
-return (
-  <div className="min-h-screen w-full bg-[var(--color-background)] text-[var(--color-foreground)]">
-    {/* Header Fixo Estilo Netflix */}
-    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-background)]/90 px-6 py-4 backdrop-blur-md md:px-12">
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-2">
-          <span className="font-display text-2xl font-black tracking-wider text-yellow-600">
-            DJG MATCH
-          </span>
-        </div>
-
-        <nav className="hidden items-center gap-6 md:flex">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`cursor-pointer font-body text-sm font-medium transition-colors ${
-                t.id === tab
-                  ? 'font-semibold text-white'
-                  : 'text-[var(--color-muted)] hover:text-white'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-yellow-600 font-mono text-xs font-bold text-white shadow">
-            {(currentUser.name || 'U').charAt(0).toUpperCase()}
+    <div className="min-h-screen w-full bg-[var(--color-background)] text-[var(--color-foreground)]">
+      {/* Header Fixo Estilo Netflix */}
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-background)]/90 px-6 py-4 backdrop-blur-md md:px-12">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2">
+            <span className="font-display text-2xl font-black tracking-wider text-yellow-600">
+              DJG MATCH
+            </span>
           </div>
 
-          <span className="hidden font-mono text-xs text-[var(--color-foreground)] sm:inline">
-            {currentUser.name || `Usuário #${userId}`}
-          </span>
+          <nav className="hidden items-center gap-6 md:flex">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`cursor-pointer font-body text-sm font-medium transition-colors ${t.id === tab
+                    ? 'font-semibold text-white'
+                    : 'text-[var(--color-muted)] hover:text-white'
+                  }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
         </div>
 
-        <button
-          onClick={() => setCurrentUser(null)}
-          className="cursor-pointer rounded-md border border-[var(--color-border)] px-3 py-1 font-mono text-xs text-[var(--color-muted)] transition-colors hover:border-white hover:text-white"
-        >
-          Trocar
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-yellow-600 font-mono text-xs font-bold text-white shadow">
+              {(currentUser.name || 'U').charAt(0).toUpperCase()}
+            </div>
+
+            <span className="hidden font-mono text-xs text-[var(--color-foreground)] sm:inline">
+              {currentUser.name || `Usuário #${userId}`}
+            </span>
+          </div>
+
+          <button
+            onClick={() => setCurrentUser(null)}
+            className="cursor-pointer rounded-md border border-[var(--color-border)] px-3 py-1 font-mono text-xs text-[var(--color-muted)] transition-colors hover:border-white hover:text-white"
+          >
+            Trocar
+          </button>
+        </div>
+      </header>
+
+      {/* Navegação Mobile */}
+      <div className="flex border-b border-[var(--color-border-subtle)] bg-[var(--color-card)] px-4 py-2 md:hidden">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex-1 py-2 text-center font-body text-xs font-medium ${t.id === tab
+                ? 'border-b-2 border-red-600 font-semibold text-white'
+                : 'text-[var(--color-muted)]'
+              }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-    </header>
 
-    {/* Navegação Mobile */}
-    <div className="flex border-b border-[var(--color-border-subtle)] bg-[var(--color-card)] px-4 py-2 md:hidden">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          onClick={() => setTab(t.id)}
-          className={`flex-1 py-2 text-center font-body text-xs font-medium ${
-            t.id === tab
-              ? 'border-b-2 border-red-600 font-semibold text-white'
-              : 'text-[var(--color-muted)]'
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
+      {/* Conteúdo Principal */}
+      <main className="mx-auto max-w-7xl px-6 py-8 md:px-12">
+        <section className="mb-6">
+          <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+            {tab === 'recommend' && 'Recomendados para Você'}
+            {tab === 'rate' && 'Explore e Avalie Filmes'}
+            {tab === 'history' && 'Seu Histórico de Avaliações'}
+          </h1>
 
-    {/* Conteúdo Principal */}
-    <main className="mx-auto max-w-7xl px-6 py-8 md:px-12">
-      <section className="mb-6">
-        <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-          {tab === 'recommend' && 'Recomendados para Você'}
-          {tab === 'rate' && 'Explore e Avalie Filmes'}
-          {tab === 'history' && 'Seu Histórico de Avaliações'}
-        </h1>
+          <p className="font-mono text-xs text-[var(--color-muted)]">
+            {tab === 'recommend' &&
+              'Com base nas suas avaliações e preferências no CineMatch'}
+            {tab === 'rate' &&
+              'Pesquise e atribua estrelas aos filmes que você já assistiu'}
+            {tab === 'history' &&
+              'Acompanhe todas as suas notas e datas de avaliação'}
+          </p>
+        </section>
 
-        <p className="font-mono text-xs text-[var(--color-muted)]">
-          {tab === 'recommend' &&
-            'Com base nas suas avaliações e preferências no CineMatch'}
-          {tab === 'rate' &&
-            'Pesquise e atribua estrelas aos filmes que você já assistiu'}
-          {tab === 'history' &&
-            'Acompanhe todas as suas notas e datas de avaliação'}
-        </p>
-      </section>
-
-      {/*
+        {/*
         Todas as abas permanecem montadas em memória para preservar o estado e evitar novos carregamentos na API.
         Apenas a aba ativa visível via CSS.
       */}
 
-      <div className={tab === 'history' ? 'block' : 'hidden'}>
-        <RatingHistoryTab
-          userId={userId}
-          onSelectMovieId={(id) => setSelectedMovie({ id })}
+        {tab === 'history' && <RatingHistoryTab userId={userId} onSelectMovieId={(id) => setSelectedMovie({ id })} />}
+        {tab === 'rate' && <RateMovieTab userId={userId} onSelectMovieId={(id) => setSelectedMovie({ id })} />}
+        {tab === 'recommend' && <RecommendationsTab userId={userId} onSelectMovieId={(id) => setSelectedMovie({ id })} />}
+      </main>
+
+      {/* Modal OMDb */}
+      {selectedMovie && (
+        <MovieDetailsModal
+          identifier={selectedMovie}
+          onClose={() => setSelectedMovie(null)}
         />
-      </div>
+      )}
 
-      <div className={tab === 'rate' ? 'block' : 'hidden'}>
-        <RateMovieTab
-          userId={userId}
-          onSelectMovieId={(id) => setSelectedMovie({ id })}
-        />
-      </div>
+      {/* Footer */}
+      <footer className="mt-auto border-t border-[var(--color-border-subtle)] px-6 py-8 text-center md:px-12">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
+          <p className="font-mono text-xs text-[var(--color-muted)]">
+            Perfil ativo:{' '}
+            <span className="text-white">
+              {currentUser.name || `Usuário #${userId}`}
+            </span>{' '}
+            · ID #{userId}
+          </p>
 
-      <div className={tab === 'recommend' ? 'block' : 'hidden'}>
-        <RecommendationsTab
-          userId={userId}
-          onSelectMovieId={(id) => setSelectedMovie({ id })}
-        />
-      </div>
-    </main>
-
-    {/* Modal OMDb */}
-    {selectedMovie && (
-      <MovieDetailsModal
-        identifier={selectedMovie}
-        onClose={() => setSelectedMovie(null)}
-      />
-    )}
-
-    {/* Footer */}
-    <footer className="mt-auto border-t border-[var(--color-border-subtle)] px-6 py-8 text-center md:px-12">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
-        <p className="font-mono text-xs text-[var(--color-muted)]">
-          Perfil ativo:{' '}
-          <span className="text-white">
-            {currentUser.name || `Usuário #${userId}`}
-          </span>{' '}
-          · ID #{userId}
-        </p>
-
-        <p className="font-mono text-xs text-[var(--color-muted)]">
-          DJG-MATCH © 2026
-        </p>
-      </div>
-    </footer>
-  </div>
-);
+          <p className="font-mono text-xs text-[var(--color-muted)]">
+            DJG-MATCH © 2026
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
 }
