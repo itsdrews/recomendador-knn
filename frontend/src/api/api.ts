@@ -120,7 +120,7 @@ export const api = {
     }),
 
   getRecommendations: async (userId: number): Promise<RecommendationResponse> => {
-    return await request<RecommendationResponse>(`/recomendar/${userId}?top_k=5`);
+    return await request<RecommendationResponse>(`/recomendar/${userId}?top_k=10`);
   },
   // 4. Buscar Filmes por Título
   searchMovies: async (query: string): Promise<Movie[]> => {

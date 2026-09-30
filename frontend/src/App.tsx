@@ -561,8 +561,14 @@ function RecommendationsTab({
     );
   }
 
-  const cosineRecs = data?.recomendacoes_cosine?.slice(0, 5) || [];
-  const pearsonRecs = data?.recomendacoes_pearson?.slice(0, 5) || [];
+  // Garantia contra campos 'undefined' vindos da API
+  const cosineRecs = Array.isArray(data?.recomendacoes_cosine)
+    ? data.recomendacoes_cosine.slice(0, 5)
+    : [];
+
+  const pearsonRecs = Array.isArray(data?.recomendacoes_pearson)
+    ? data.recomendacoes_pearson.slice(0, 5)
+    : [];
 
   if (!cosineRecs.length && !pearsonRecs.length) {
     return (
@@ -593,44 +599,56 @@ function RecommendationsTab({
       </div>
 
       {/* SEÇÃO 1: Similaridade de Cosseno (Top 5) */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-mono text-sm font-bold text-[var(--color-text)] uppercase tracking-wider">
-            Similaridade Cosseno (Top 5)
-          </h3>
-        </div>
+      {cosineRecs.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-mono text-sm font-bold text-[var(--color-text)] uppercase tracking-wider">
+              Similaridade Cosseno (Top 5)
+            </h3>
+          </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {cosineRecs.map((recommendation, index) => (
-            <RecommendationCard
-              key={`cosine-${recommendation.movie_id}-${index}`}
-              recommendation={recommendation}
-              position={index + 1}
-              onSelect={onSelectMovieId}
-            />
-          ))}
-        </div>
-      </section>
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent snap-x snap-mandatory">
+            {cosineRecs.map((recommendation, index) => (
+              <div
+                key={`cosine-${recommendation.movie_id}-${index}`}
+                className="min-w-[200px] w-[200px] flex-shrink-0 snap-start"
+              >
+                <RecommendationCard
+                  recommendation={recommendation}
+                  position={index + 1}
+                  onSelect={onSelectMovieId}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* SEÇÃO 2: Similaridade de Pearson (Top 5) */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-mono text-sm font-bold text-[var(--color-text)] uppercase tracking-wider">
-            Similaridade Pearson (Top 5)
-          </h3>
-        </div>
+      {pearsonRecs.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-mono text-sm font-bold text-[var(--color-text)] uppercase tracking-wider">
+              Similaridade Pearson (Top 5)
+            </h3>
+          </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {pearsonRecs.map((recommendation, index) => (
-            <RecommendationCard
-              key={`pearson-${recommendation.movie_id}-${index}`}
-              recommendation={recommendation}
-              position={index + 1}
-              onSelect={onSelectMovieId}
-            />
-          ))}
-        </div>
-      </section>
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent snap-x snap-mandatory">
+            {pearsonRecs.map((recommendation, index) => (
+              <div
+                key={`pearson-${recommendation.movie_id}-${index}`}
+                className="min-w-[200px] w-[200px] flex-shrink-0 snap-start"
+              >
+                <RecommendationCard
+                  recommendation={recommendation}
+                  position={index + 1}
+                  onSelect={onSelectMovieId}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
