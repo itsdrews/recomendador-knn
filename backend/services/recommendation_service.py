@@ -15,13 +15,15 @@ class RecommendationService:
     def __init__(
         self,
         knn_model,
+        knn_pearson,
         matrix,
         recommendation_repo: RecommendationRepository,
         user_repo: UserRepository,
         rating_repo: RatingRepository,
         movie_service: MovieService,
     ):
-        self.knn = knn_model
+        self.knn_cosine = knn_model
+        self.knn_pearson = knn_pearson
         self.matrix = matrix
         self.recommendation_repo = recommendation_repo
         self.user_repo = user_repo
@@ -32,7 +34,7 @@ class RecommendationService:
         self, user_id: int, top_k: int = 5, use_cache: bool = True
     ) -> RecommendationResponseSchema:
 
-        # 1. Validações
+        # 1. Validação de Usuário
         if not self.user_repo.exists(user_id):
             raise ValueError(f"UserID {user_id} não encontrado na base de dados.")
 
@@ -54,94 +56,97 @@ class RecommendationService:
                 )
             )
 
-        # 3. Verifica Cache no Banco de Dados
-        cached_recs = []
+        # 3. Processa Recomendações de Cosseno
+        top_scores_cosine = self._obter_scores_por_metrica(
+            user_id=user_id,
+            metric="cosine",
+            model=self.knn_cosine,
+            user_ratings=user_ratings,
+            movies_watched=movies_watched,
+            top_k=top_k,
+            use_cache=use_cache,
+        )
 
-        if use_cache:
-            cached_recs = self.recommendation_repo.get_by_user_id(
-                user_id, limit=top_k
-            )
+        # 4. Processa Recomendações de Pearson
+        top_scores_pearson = self._obter_scores_por_metrica(
+            user_id=user_id,
+            metric="pearson",
+            model=self.knn_pearson,
+            user_ratings=user_ratings,
+            movies_watched=movies_watched,
+            top_k=top_k,
+            use_cache=use_cache,
+        )
 
-        top_movie_scores: List[Dict[str, Any]] = []
+        # 5. Enriquecimento OMDb (Intacto) para ambos os grupos
+        recomendacoes_cosine = await self._enriquecer_recomendacoes(top_scores_cosine)
+        recomendacoes_pearson = await self._enriquecer_recomendacoes(top_scores_pearson)
 
-        if cached_recs:
-            for item in cached_recs:
-                top_movie_scores.append(
-                    {"movie_id": item.movie_id, "score": item.score}
-                )
-
-        else:
-            # 4. Decide entre Cold Start e KNN
-            if not user_ratings:
-                top_rated_movies = self.rating_repo.get_top_rated_movies(
-                    limit=top_k
-                )
-
-                top_movie_scores = [
-                    {
-                        "movie_id": item.movie_id,
-                        "score": float(item.average_rating),
-                    }
-                    for item in top_rated_movies
-                ]
-
-                algorithm_type = "global"
-
-            else:
-                top_movie_scores = self._calcular_knn_recommendations(
-                    user_id, movies_watched, top_k
-                )
-
-                algorithm_type = "knn"
-
-            # Persiste o resultado no banco
-            self.recommendation_repo.save_bulk_recommendations(
-                user_id=user_id,
-                recommendations=top_movie_scores,
-                algorithm_type=algorithm_type,
-            )
-
-        # 5. Enriquece os dados com OMDb através do MovieService
-        recomendacoes = []
-
-        for rec in top_movie_scores:
-            m_id = rec["movie_id"]
-            detalhes = await self.movie_service.get_enriched_movie_details(m_id)
-
-            recomendacoes.append(
-                MovieRecommendationSchema(
-                    movie_id=m_id,
-                    titulo=detalhes["titulo"],
-                    score_recomendacao=round(float(rec["score"]), 2),
-                    ano=detalhes["ano"],
-                    diretor=detalhes["diretor"],
-                    sinopse=detalhes["sinopse"],
-                    poster_url=detalhes["poster_url"],
-                )
-            )
-
+        # 6. Retorno mapeado diretamente para o RecommendationResponseSchema
         return RecommendationResponseSchema(
             user_id=user_id,
             total_historico=len(historico_usuario),
             historico_usuario=historico_usuario,
-            total_recomendacoes=len(recomendacoes),
-            recomendacoes=recomendacoes,
+            total_recomendacoes_cosine=len(recomendacoes_cosine),
+            recomendacoes_cosine=recomendacoes_cosine,
+            total_recomendacoes_pearson=len(recomendacoes_pearson),
+            recomendacoes_pearson=recomendacoes_pearson,
         )
 
-    def _calcular_knn_recommendations(
-        self, user_id: int, movies_watched: set, top_k: int
+    def _obter_scores_por_metrica(
+        self,
+        user_id: int,
+        metric: str,
+        model: Any,
+        user_ratings: List[Any],
+        movies_watched: set,
+        top_k: int,
+        use_cache: bool,
     ) -> List[Dict[str, Any]]:
-        """Lógica interna para predição via matriz/KNN."""
+        """Busca do cache ou calcula e salva no banco para a métrica especificada."""
+        algorithm_type = f"knn_{metric}"
+        cached_recs = []
 
+        if use_cache:
+            cached_recs = self.recommendation_repo.get_by_user_id(
+                user_id, limit=top_k, algorithm_type=algorithm_type
+            )
+
+        if cached_recs:
+            return [{"movie_id": item.movie_id, "score": item.score} for item in cached_recs]
+
+        # Cold Start x KNN
+        if not user_ratings:
+            top_rated_movies = self.rating_repo.get_top_rated_movies(limit=top_k)
+            top_scores = [
+                {"movie_id": item.movie_id, "score": float(item.average_rating)}
+                for item in top_rated_movies
+            ]
+            save_type = "global"
+        else:
+            top_scores = self._calcular_knn_recommendations(
+                model=model, user_id=user_id, movies_watched=movies_watched, top_k=top_k
+            )
+            save_type = algorithm_type
+
+        # Salva o resultado individualmente para este algoritmo
+        self.recommendation_repo.save_bulk_recommendations(
+            user_id=user_id, recommendations=top_scores, algorithm_type=save_type
+        )
+
+        return top_scores
+
+    def _calcular_knn_recommendations(
+        self, model: Any, user_id: int, movies_watched: set, top_k: int
+    ) -> List[Dict[str, Any]]:
+        """Cálculo genérico de vizinhos mais próximos."""
         if user_id not in self.matrix.index:
             return []
 
         user_row_idx = self.matrix.index.get_loc(user_id)
         target_user_vector = self.matrix.values[user_row_idx]
 
-        distances, indices = self.knn.kneighbors(
-            target_user_vector, n_neighbors=15
-        )
+        distances, indices = model.kneighbors(target_user_vector, n_neighbors=15)
 
         neighbor_indices = indices[0][1:]
         neighbor_distances = distances[0][1:]
@@ -157,17 +162,36 @@ class RecommendationService:
 
                 if rating >= 4.0 and movie_id not in movies_watched:
                     movie_scores[movie_id] = (
-                        movie_scores.get(movie_id, 0.0)
-                        + rating * similarity
+                        movie_scores.get(movie_id, 0.0) + rating * similarity
                     )
 
         sorted_movies = sorted(
-            movie_scores,
-            key=movie_scores.get,
-            reverse=True,
+            movie_scores, key=movie_scores.get, reverse=True
         )[:top_k]
 
         return [
             {"movie_id": m_id, "score": movie_scores[m_id]}
             for m_id in sorted_movies
         ]
+
+    async def _enriquecer_recomendacoes(
+        self, top_scores: List[Dict[str, Any]]
+    ) -> List[MovieRecommendationSchema]:
+        """Aplica o enriquecimento via MovieService mantendo o formato idêntico ao original."""
+        recomendacoes = []
+        for rec in top_scores:
+            m_id = rec["movie_id"]
+            detalhes = await self.movie_service.get_enriched_movie_details(m_id)
+
+            recomendacoes.append(
+                MovieRecommendationSchema(
+                    movie_id=m_id,
+                    titulo=detalhes["titulo"],
+                    score_recomendacao=round(float(rec["score"]), 2),
+                    ano=detalhes["ano"],
+                    diretor=detalhes["diretor"],
+                    sinopse=detalhes["sinopse"],
+                    poster_url=detalhes["poster_url"],
+                )
+            )
+        return recomendacoes

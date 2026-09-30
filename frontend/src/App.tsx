@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import type { RatingEntry, Movie, MovieRecommendation, MovieDetails, User } from './api/api';
+import type { RatingEntry, Movie, RecommendationResponse, MovieDetails, User } from './api/api';
 import { RecommendationCard } from './components/RecommendationCard';
 import { api } from './api/api';
 import { UserSelectionScreen } from './pages/UserSelectionScreen';
@@ -509,20 +509,17 @@ function RecommendationsTab({
   userId: number;
   onSelectMovieId: (movieId: number) => void;
 }) {
-  const [recs, setRecs] = useState<MovieRecommendation[]>([]);
+  const [data, setData] = useState<RecommendationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-
-
 
   const fetchRecommendations = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const recommendations = await api.getRecommendations(userId);
-      setRecs(recommendations.slice(0, 10));
+      const response = await api.getRecommendations(userId);
+      setData(response);
     } catch (e) {
       setError((e as Error).message || 'Erro ao buscar recomendações.');
     } finally {
@@ -541,7 +538,7 @@ function RecommendationsTab({
     return (
       <div className="flex items-center justify-center py-20">
         <span className="animate-pulse font-mono text-sm text-[var(--color-muted)]">
-          Crunching the algorithm…
+          Calculando...
         </span>
       </div>
     );
@@ -564,7 +561,10 @@ function RecommendationsTab({
     );
   }
 
-  if (!recs.length) {
+  const cosineRecs = data?.recomendacoes_cosine?.slice(0, 5) || [];
+  const pearsonRecs = data?.recomendacoes_pearson?.slice(0, 5) || [];
+
+  if (!cosineRecs.length && !pearsonRecs.length) {
     return (
       <div className="py-16 text-center text-[var(--color-muted)]">
         <p className="font-display italic">
@@ -578,31 +578,60 @@ function RecommendationsTab({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="font-mono text-xs text-[var(--color-muted)]">
-          Top {recs.length} recomendações para você!
-        </p>
-
+    <div className="space-y-8">
+      {/* Botão de Atualizar no Topo */}
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+        <span className="font-mono text-xs text-[var(--color-muted)]">
+          Comparativo de Métricas de Similaridade
+        </span>
         <button
-          //onClick={fetchRecommendations}
+          onClick={fetchRecommendations}
           className="cursor-pointer font-mono text-xs text-[var(--color-amber)] hover:underline"
         >
           Refresh
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {recs.map((recommendation, index) => (
-          <RecommendationCard
-            key={`${recommendation.movie_id}-${index}`}
-            recommendation={recommendation}
-            position={index + 1}
-            onSelect={onSelectMovieId}
-          />
-        ))}
-      </div>
-    </div >
+      {/* SEÇÃO 1: Similaridade de Cosseno (Top 5) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-mono text-sm font-bold text-[var(--color-text)] uppercase tracking-wider">
+            Similaridade Cosseno (Top 5)
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {cosineRecs.map((recommendation, index) => (
+            <RecommendationCard
+              key={`cosine-${recommendation.movie_id}-${index}`}
+              recommendation={recommendation}
+              position={index + 1}
+              onSelect={onSelectMovieId}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* SEÇÃO 2: Similaridade de Pearson (Top 5) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-mono text-sm font-bold text-[var(--color-text)] uppercase tracking-wider">
+            Similaridade Pearson (Top 5)
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {pearsonRecs.map((recommendation, index) => (
+            <RecommendationCard
+              key={`pearson-${recommendation.movie_id}-${index}`}
+              recommendation={recommendation}
+              position={index + 1}
+              onSelect={onSelectMovieId}
+            />
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -646,8 +675,8 @@ export default function App() {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={`cursor-pointer font-body text-sm font-medium transition-colors ${t.id === tab
-                    ? 'font-semibold text-white'
-                    : 'text-[var(--color-muted)] hover:text-white'
+                  ? 'font-semibold text-white'
+                  : 'text-[var(--color-muted)] hover:text-white'
                   }`}
               >
                 {t.label}
@@ -683,8 +712,8 @@ export default function App() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex-1 py-2 text-center font-body text-xs font-medium ${t.id === tab
-                ? 'border-b-2 border-red-600 font-semibold text-white'
-                : 'text-[var(--color-muted)]'
+              ? 'border-b-2 border-red-600 font-semibold text-white'
+              : 'text-[var(--color-muted)]'
               }`}
           >
             {t.label}
@@ -703,7 +732,7 @@ export default function App() {
 
           <p className="font-mono text-xs text-[var(--color-muted)]">
             {tab === 'recommend' &&
-              'Com base nas suas avaliações e preferências no CineMatch'}
+              'Com base nas suas avaliações e preferências no Match'}
             {tab === 'rate' &&
               'Pesquise e atribua estrelas aos filmes que você já assistiu'}
             {tab === 'history' &&

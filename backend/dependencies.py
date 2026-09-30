@@ -61,9 +61,11 @@ def get_recommendation_service(
     # Mantém o modelo e a matriz em memória apenas para o cálculo estatístico do KNN
     knn = request.app.state.store["knn"]
     matrix = request.app.state.store["user_item_matrix"]
+    knn_pearson = request.app.state.store["knn_pearson"]
 
     return RecommendationService(
         knn_model=knn,
+        knn_pearson = knn_pearson,
         matrix=matrix,
         recommendation_repo=recommendation_repo,
         user_repo=user_repo,

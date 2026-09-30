@@ -17,8 +17,13 @@ class MovieRecommendationSchema(BaseModel):
 class RecommendationResponseSchema(BaseModel):
     user_id: int
     total_historico: int
-    historico_usuario: List[UserHistoryItemSchema]  # Ou List[UserHistoryItemSchema]
-    total_recomendacoes: int
-    recomendacoes: List[MovieRecommendationSchema]
+    historico_usuario: List[UserHistoryItemSchema]
+    
+    # Recomendações divididas por métrica
+    recomendacoes_cosine: List[MovieRecommendationSchema]
+    recomendacoes_pearson: List[MovieRecommendationSchema]
+    
+    total_recomendacoes_cosine: int
+    total_recomendacoes_pearson: int
 
     model_config = ConfigDict(from_attributes=True)

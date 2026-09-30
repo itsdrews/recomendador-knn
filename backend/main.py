@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
 
     # 2. Carrega o modelo de Machine Learning treinado
     knn_model = joblib.load("modelo_knn_users.pkl")
+    knn_pearson = joblib.load("knn_pearson.pkl")
 
     # 3. Monta a matriz Usuário-Item consultando a tabela 'ratings' do SQLite
     query = "SELECT user_id, movie_id, rating FROM ratings"
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     app.state.store = {
         "knn": knn_model,
         "user_item_matrix": user_item_matrix,
+        "knn_pearson":knn_pearson
     }
 
     print("🚀 Aplicação inicializada: Tabelas verificadas e modelo KNN carregado no app.state.store")

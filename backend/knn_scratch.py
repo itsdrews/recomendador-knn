@@ -13,7 +13,14 @@ class NearestNeighborsCustom:
         b_normalized = b / (norm_b + 1e-10)
         similarity = np.dot(a_normalized, b_normalized.T)
         return 1.0 - similarity
-
+    def _pearson_distance(self, a, b):
+        # Centraliza os vetores subtraindo a média de cada linha
+        a_centered = a - np.mean(a, axis=1, keepdims=True)
+        b_centered = b - np.mean(b, axis=1, keepdims=True)
+        
+        # A similaridade de Pearson é a distância cosseno dos vetores centralizados
+        return self._cosine_distance(a_centered, b_centered)
+    
     def fit(self, X):
         self.X_train = np.array(X, dtype=np.float64)
         return self
@@ -28,7 +35,10 @@ class NearestNeighborsCustom:
 
         if self.metric == 'cosine':
             distances_matrix = self._cosine_distance(X_query, self.X_train)
+        elif self.metric == 'pearson':
+            distances_matrix = self._pearson_distance(X_query, self.X_train)
         elif self.metric == 'euclidean':
+
             distances_matrix = np.sqrt(np.sum((X_query[:, np.newaxis, :] - self.X_train[np.newaxis, :, :]) ** 2, axis=-1))
         else:
             raise ValueError(f"Métrica '{self.metric}' não suportada.")

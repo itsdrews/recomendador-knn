@@ -70,14 +70,13 @@ export interface MovieRecommendation {
 export interface RecommendationResponse {
   user_id: number;
   total_historico: number;
-  historico_usuario: UserHistoryItem[]; // 📌 CORRIGIDO: Adicionado campo exigido pelo backend
-  total_recomendacoes: number;
-  recomendacoes: MovieRecommendation[];
+  historico_usuario: UserHistoryItem[];
+  total_recomendacoes_cosine: number;
+  recomendacoes_cosine: MovieRecommendation[];
+  total_recomendacoes_pearson: number;
+  recomendacoes_pearson: MovieRecommendation[];
 }
 
-// ==========================================
-// FUNÇÃO BASE DE REQUISIÇÃO
-// ==========================================
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -120,12 +119,9 @@ export const api = {
       }),
     }),
 
-  // 3. Obter Recomendações
-  getRecommendations: async (userId: number): Promise<MovieRecommendation[]> => {
-    const data = await request<RecommendationResponse>(`/recomendar/${userId}`);
-    return data.recomendacoes;
+  getRecommendations: async (userId: number): Promise<RecommendationResponse> => {
+    return await request<RecommendationResponse>(`/recomendar/${userId}?top_k=5`);
   },
-
   // 4. Buscar Filmes por Título
   searchMovies: async (query: string): Promise<Movie[]> => {
     if (!query.trim()) return [];
