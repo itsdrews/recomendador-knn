@@ -45,7 +45,7 @@ cd frontend
 npm install
 npm run dev
 ```
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```text
 .
@@ -53,6 +53,7 @@ npm run dev
 │   ├── ml-1m/
 ├── backend/
 │   ├── controllers/
+│   ├── models/
 │   ├── services/
 │   ├── repositories/
 │   ├── schemas/
